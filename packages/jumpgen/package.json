@@ -1,0 +1,35 @@
+{
+  "name": "jumpgen",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Tiny framework for file generators (with watch mode support)",
+  "author": "Alec Larson",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/generator.d.ts",
+      "default": "./dist/generator.js"
+    },
+    "./context": {
+      "types": "./dist/context.d.ts",
+      "default": "./dist/context.js"
+    }
+  },
+  "dependencies": {
+    "chokidar": "^4.0.1",
+    "fast-glob": "^3.3.2",
+    "micromatch": "^4.0.8"
+  },
+  "devDependencies": {
+    "@types/micromatch": "^4.0.9",
+    "@types/node": "^22.7.4"
+  },
+  "scripts": {
+    "dev": "tsup --sourcemap --watch",
+    "build": "tsup",
+    "lint": "tsc -p . --noEmit --outDir node_modules/.tmp",
+    "prepublishOnly": "pnpm -s build"
+  }
+}
