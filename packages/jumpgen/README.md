@@ -8,6 +8,7 @@ With it, you can easily do the following:
 - Automatically watch globs and directories that you scan, so added and deleted files will rerun your generator
 - Use template literals without worrying about excess indentation
 - Abort an asynchronous generator when a file changes
+- Only write files if they have changed
 
 It uses the `fast-glob`, `micromatch`, and `chokidar@4` npm packages under the hood for file watching and globbing.
 
