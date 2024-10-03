@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@alloc/fast-rimraf':
+        specifier: ^1.0.8
+        version: 1.0.8
       '@alloc/prettier-config':
         specifier: ^1.0.0
         version: 1.0.0
@@ -62,6 +65,10 @@ importers:
         version: 4.1.5
 
 packages:
+
+  '@alloc/fast-rimraf@1.0.8':
+    resolution: {integrity: sha512-TsRTRLLDW6Q4fWBAYlbkcaHQDAANKsI0smrhS/1x7/GHcjVxo+r+2VRbqrWaYpmjdhvCp5v7n2wtwkMYp+Kivw==}
+    hasBin: true
 
   '@alloc/prettier-config@1.0.0':
     resolution: {integrity: sha512-xm50V1qxSdTh1O1fKA+gqcU605YSnxfq6HwtYSFU3fRsKMFnUSuSOxqSAPI7y2sRxqPed2EIuGmNn107LVQM6g==}
@@ -942,6 +949,8 @@ packages:
     engines: {node: '>=12'}
 
 snapshots:
+
+  '@alloc/fast-rimraf@1.0.8': {}
 
   '@alloc/prettier-config@1.0.0': {}
 

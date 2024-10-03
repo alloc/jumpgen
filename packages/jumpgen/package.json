@@ -27,8 +27,8 @@
     "@types/node": "^22.7.4"
   },
   "scripts": {
-    "dev": "tsup --sourcemap --watch",
-    "build": "tsup",
+    "dev": "rimraf dist && tsup --sourcemap --watch",
+    "build": "rimraf dist && tsup",
     "lint": "tsc -p . --noEmit --outDir node_modules/.tmp",
     "prepublishOnly": "pnpm -s build"
   }
