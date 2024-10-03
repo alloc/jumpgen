@@ -104,6 +104,18 @@ runner.events.on('error', (error, generatorName) => {
 })
 ```
 
+### Composing generators
+
+The `compose` function lets you combine multiple generators into a single generator that runs them all in parallel.
+
+```ts
+import { compose } from 'jumpgen'
+
+// The returned generator has the same API as the generators you pass to it,
+// except it resolves with an array containing the results of all the generators.
+const myGenerator = compose(generatorA, generatorB)
+```
+
 ## License
 
 MIT

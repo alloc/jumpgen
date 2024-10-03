@@ -6,6 +6,8 @@ import {
   JumpgenOptions,
 } from './context'
 
+export { compose } from './compose'
+
 export type Context = Omit<
   JumpgenContext,
   'abort' | 'events' | 'reset' | 'watcher'
