@@ -24,24 +24,37 @@ Define your generator with a name and a function that receives a `Context` objec
 ```ts
 import { jumpgen } from 'jumpgen'
 
-export default jumpgen('my-generator', async ({ read, scan, write }) => {
-  // Find files to use as source modules. If a file matching your globs
-  // is later added or removed, your generator will be rerun (if watch
-  // mode is enabled).
-  const sourceModulePaths = scan(['src/**/*.ts', '!**/*.test.ts'], {
-    absolute: true,
-  })
+export default jumpgen(
+  'my-generator',
+  async ({ read, scan, dedent, write }) => {
+    // Find files to use as source modules. If a file matching your globs
+    // is later added or removed, your generator will be rerun (if watch
+    // mode is enabled).
+    const sourceModulePaths = scan(['src/**/*.ts', '!**/*.test.ts'], {
+      absolute: true,
+    })
 
-  // When you read a file, and you later change or delete it, your generator
-  // will be rerun (if watch mode is enabled).
-  const contents = sourceModulePaths.map(p => read(p))
+    // When you read a file, and you later change or delete it, your generator
+    // will be rerun (if watch mode is enabled).
+    const contents = sourceModulePaths.map(p => read(p))
 
-  // When you write a file, your generator emits a "write" event. This
-  // is useful for logging, which helps you understand what's happening.
-  contents.forEach(content => {
-    write(content.name, content.contents)
-  })
-})
+    // When you write a file, your generator emits a "write" event. This
+    // is useful for logging, which helps you understand what's happening.
+    contents.forEach((content, i) => {
+      const outPath = sourceModulePaths[i].replace(/\.ts$/, '.js')
+      write(outPath, transform(content))
+    })
+
+    // Use the "dedent" function to remove excess indentation from your
+    // template literals.
+    write(
+      'foo.ts',
+      dedent`
+        export const foo = true
+      `
+    )
+  }
+)
 ```
 
 To run your generator, simply import and call it.
