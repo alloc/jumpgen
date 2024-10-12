@@ -116,6 +116,10 @@ import { compose } from 'jumpgen'
 const myGenerator = compose(generatorA, generatorB)
 ```
 
+## Testing
+
+See the [testing guide](./docs/testing.md) for information on how to test your generators.
+
 ## License
 
 MIT
