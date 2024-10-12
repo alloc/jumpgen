@@ -1,7 +1,7 @@
 import chokidar from 'chokidar'
 import glob from 'fast-glob'
 import { EventEmitter } from 'node:events'
-import fs from 'node:fs'
+import nodeFs from 'node:fs'
 import path from 'node:path'
 import { isArray, isString } from 'radashi'
 import { dedent } from './util/dedent'
@@ -39,6 +39,25 @@ export type JumpgenOptions = {
    * across multiple generators.
    */
   events?: JumpgenEventEmitter
+  /**
+   * Override the filesystem implementation.
+   *
+   * @default import("node:fs")
+   */
+  fs?: FileSystem
+}
+
+export type FileSystem = {
+  mkdirSync: (dir: string, options: { recursive: boolean }) => void
+  readdirSync: (dir: string) => string[]
+  readFileSync: typeof import('node:fs').readFileSync
+  statSync: (file: string) => import('node:fs').Stats
+  writeFileSync: (file: string, data: string | Buffer) => void
+}
+
+export type ReadOptions = {
+  encoding?: BufferEncoding | null
+  flag?: string
 }
 
 export type GlobOptions = import('fast-glob').Options & {
@@ -71,7 +90,7 @@ export function createJumpgenContext(
   generatorName: string,
   options: JumpgenOptions = {}
 ) {
-  const { events = new EventEmitter(), watch = false } = options
+  const { events = new EventEmitter(), watch = false, fs = nodeFs } = options
   const root = options.root ? path.resolve(options.root) : process.cwd()
 
   const matcher = new MatcherArray()
@@ -99,7 +118,7 @@ export function createJumpgenContext(
     const initialPaths = isArray(watch) ? watch : undefined
     initialPaths?.forEach(p => {
       p = path.resolve(root, p)
-      if (isExistingFile(p)) {
+      if (isExistingFile(fs, p)) {
         matcher.addFile(p)
       } else {
         matcher.add(p)
@@ -176,13 +195,7 @@ export function createJumpgenContext(
 
   function read(
     file: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
+    options?: ReadOptions | BufferEncoding | null
   ): any {
     file = path.resolve(root, file)
 
@@ -314,9 +327,9 @@ export function createJumpgenContext(
   }
 }
 
-function isExistingFile(path: string): boolean {
+function isExistingFile(fs: FileSystem, p: string): boolean {
   try {
-    return fs.statSync(path).isFile()
+    return fs.statSync(p).isFile()
   } catch {
     return false
   }
