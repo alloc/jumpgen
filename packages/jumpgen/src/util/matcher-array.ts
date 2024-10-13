@@ -1,7 +1,6 @@
 import { FSWatcher } from 'chokidar'
-import micromatch, { Options } from 'micromatch'
 import path from 'node:path'
-import { isArray } from 'radashi'
+import picomatch from 'picomatch'
 
 export type Matcher = {
   base: string
@@ -28,13 +27,7 @@ export class MatcherArray {
     return this.files
   }
 
-  add(patterns: string | string[], options?: Options): void {
-    if (isArray(patterns)) {
-      patterns = patterns.flatMap(p => micromatch.braces(p, { expand: true }))
-    } else {
-      patterns = micromatch.braces(patterns, { expand: true })
-    }
-
+  add(patterns: string | string[], options?: picomatch.PicomatchOptions): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
 
@@ -56,7 +49,7 @@ export class MatcherArray {
     }
 
     for (const pattern of positivePatterns) {
-      const { base, glob } = micromatch.scan(pattern)
+      const { base, glob } = picomatch.scan(pattern)
       const depth = path.normalize(base).split(path.sep).length
 
       let index = this.matchers.findIndex(m => depth > m.depth)
@@ -69,7 +62,7 @@ export class MatcherArray {
         base,
         glob,
         depth,
-        match: micromatch.matcher(pattern, options),
+        match: picomatch(pattern, options),
       })
     }
   }

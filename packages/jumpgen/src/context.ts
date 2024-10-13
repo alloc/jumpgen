@@ -1,9 +1,9 @@
 import chokidar from 'chokidar'
-import glob from 'fast-glob'
 import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import path from 'node:path'
 import { isArray, isString } from 'radashi'
+import { globSync } from 'tinyglobby'
 import { dedent } from './util/dedent'
 import { MatcherArray } from './util/matcher-array'
 
@@ -41,7 +41,7 @@ export type JumpgenOptions = {
   events?: JumpgenEventEmitter
 }
 
-export type GlobOptions = import('fast-glob').Options & {
+export type GlobOptions = import('tinyglobby').GlobOptions & {
   /**
    * If set to `false`, the globs won't be watched when jumpgen runs in
    * watch mode.
@@ -121,7 +121,7 @@ export function createJumpgenContext(
     if (options.watch !== false) {
       matcher.add(source, options)
     }
-    return glob.sync(source, options)
+    return globSync(source, options)
   }
 
   /**

@@ -18,13 +18,13 @@
     }
   },
   "dependencies": {
-    "chokidar": "^4.0.1",
-    "fast-glob": "^3.3.2",
-    "micromatch": "^4.0.8"
+    "chokidar": "^4.0.1"
   },
   "devDependencies": {
-    "@types/micromatch": "^4.0.9",
-    "@types/node": "^22.7.4"
+    "@types/node": "^22.7.4",
+    "@types/picomatch": "^3.0.1",
+    "picomatch": "^4.0.2",
+    "tinyglobby": "^0.2.9"
   },
   "scripts": {
     "dev": "rimraf dist && tsup --sourcemap --watch",
