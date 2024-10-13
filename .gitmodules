@@ -1,0 +1,3 @@
+[submodule "packages/fdir"]
+	path = packages/fdir
+	url = https://github.com/alloc/jumpgen-fdir.git
