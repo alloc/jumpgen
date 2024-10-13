@@ -1,7 +1,7 @@
 {
   "name": "jumpgen",
   "type": "module",
-  "version": "0.1.0-beta.4",
+  "version": "0.1.0-beta.5",
   "description": "Tiny framework for file generators (with watch mode support)",
   "author": "Alec Larson",
   "files": [
