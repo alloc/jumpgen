@@ -7,6 +7,7 @@ import {
 } from './context'
 
 export { compose } from './compose'
+export { File } from './file'
 
 export type Context = Omit<
   JumpgenContext,

@@ -4,10 +4,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { isArray, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
+import { File } from './file'
+import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
 import { MatcherArray } from './util/matcher-array'
-
-export const kJumpgenContext = Symbol('jumpgenContext')
 
 export type JumpgenContext = ReturnType<typeof createJumpgenContext>
 
@@ -269,7 +269,7 @@ export function createJumpgenContext(
     ctrl.abort()
   }
 
-  return {
+  const context = {
     [kJumpgenContext]: true,
     root,
     get watchedFiles() {
@@ -292,6 +292,16 @@ export function createJumpgenContext(
       return ctrl.signal
     },
     /**
+     * Wrap a file path in a `File` object to make it a first-class citizen
+     * that can be passed around and read/written without direct access to
+     * the Jumpgen context.
+     */
+    File: class extends File {
+      constructor(path: string) {
+        super(path, context)
+      }
+    },
+    /**
      * Remove excess indentation from a string or tagged template literal.
      * Multi-line strings are supported.
      *
@@ -312,6 +322,8 @@ export function createJumpgenContext(
     abort,
     reset,
   }
+
+  return context
 }
 
 function isExistingFile(path: string): boolean {
