@@ -11,7 +11,7 @@ export type Matcher = {
 }
 
 export class MatcherArray {
-  #watchedFiles = new Set<string>()
+  #accessedFiles = new Set<string>()
   #blamedFiles = new Map<string, Set<string>>()
   #criticalFiles = new Set<string>()
   #matchers: Matcher[] = []
@@ -24,11 +24,10 @@ export class MatcherArray {
 
   /**
    * A set of files that have been explicitly watched. Base directories
-   * from `this.add` calls are not included. Files added with a `cause`
-   * option are not included.
+   * from `this.add` calls are not included.
    */
-  get watchedFiles(): ReadonlySet<string> {
-    return this.#watchedFiles
+  get accessedFiles(): ReadonlySet<string> {
+    return this.#accessedFiles
   }
 
   get blamedFiles(): ReadonlyMap<string, ReadonlySet<string>> {
@@ -84,7 +83,7 @@ export class MatcherArray {
     options?: { cause?: string | string[]; critical?: boolean }
   ): void {
     this.watcher?.add(file)
-    this.#watchedFiles.add(file)
+    this.#accessedFiles.add(file)
 
     if (options?.critical) {
       this.#criticalFiles.add(file)
@@ -102,8 +101,24 @@ export class MatcherArray {
     }
   }
 
+  forgetFile(file: string): void {
+    this.watcher?.unwatch(file)
+
+    this.#accessedFiles.delete(file)
+    this.#blamedFiles.delete(file)
+    this.#criticalFiles.delete(file)
+
+    // If the file is to blame for other files being watched, those files
+    // may need to be rewatched if all their blamed files are forgotten.
+    for (const [relatedFile, blamedFiles] of this.#blamedFiles) {
+      if (blamedFiles.delete(file) && blamedFiles.size === 0) {
+        this.forgetFile(relatedFile)
+      }
+    }
+  }
+
   match(file: string): boolean {
-    if (this.#watchedFiles.has(file)) {
+    if (this.#accessedFiles.has(file)) {
       return true
     }
     for (const matcher of this.#matchers) {
@@ -116,14 +131,14 @@ export class MatcherArray {
 
   clear(): void {
     if (this.watcher) {
-      for (const file of this.#watchedFiles) {
+      for (const file of this.#accessedFiles) {
         this.watcher.unwatch(file)
       }
       for (const matcher of this.#matchers) {
         this.watcher.unwatch(matcher.base)
       }
     }
-    this.#watchedFiles.clear()
+    this.#accessedFiles.clear()
     this.#blamedFiles.clear()
     this.#criticalFiles.clear()
     this.#matchers.length = 0

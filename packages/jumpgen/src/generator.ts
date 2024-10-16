@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { isError, isPromise, noop } from 'radashi'
-import { createJumpgenContext, JumpgenContext } from './context'
+import { createJumpgenContext, FileChangeLog, JumpgenContext } from './context'
 import { JumpgenEventEmitter } from './events'
 import { JumpgenOptions } from './options'
 
@@ -49,31 +49,55 @@ export function jumpgen<Return>(
 
   return (options?: JumpgenOptions): Jumpgen<Awaited<Return>> => {
     const context = createJumpgenContext(generatorName, options)
-    const changedFiles = new Set<string>()
+    const changes: FileChangeLog = new Map()
 
     let promise = run(context)
     promise.catch(noop)
 
     context.watcher?.on('all', (event, file) => {
-      if (context.signal.aborted) {
-        return
-      }
-      if (event === 'change' && !context.watchedFiles.has(file)) {
+      if (event === 'change' && !context.accessedFiles.has(file)) {
         // This file was only scanned, not read into memory, so changes to
         // its contents are not relevant.
         return
       }
-      const rerun = () => {
-        context.reset()
-        context.changedFiles = new Set(changedFiles)
-        changedFiles.clear()
 
-        promise = run(context)
-        promise.catch(noop)
+      // If the affected file has another file to “blame” for its changes,
+      // then treat this as a change to the blamed file.
+      const blamedFiles = context.blamedFiles.get(file)
+      if (blamedFiles) {
+        for (const blamedFile of blamedFiles) {
+          if (!changes.has(blamedFile)) {
+            changes.set(blamedFile, {
+              event: 'change',
+              file: path.relative(context.root, blamedFile),
+            })
+          }
+        }
+      } else {
+        const lastChange = changes.get(file)
+        if (!lastChange) {
+          changes.set(file, {
+            event,
+            file: path.relative(context.root, file),
+          })
+        } else if (event !== 'change') {
+          // Avoid overwriting "add" or "unlink" with "change".
+          lastChange.event = event
+        }
       }
-      changedFiles.add(path.relative(context.root, file))
-      promise.then(rerun, rerun)
-      context.abort()
+
+      if (!context.signal.aborted) {
+        const rerun = () => {
+          context.reset(changes)
+          context.changes = Array.from(changes.values())
+          changes.clear()
+
+          promise = run(context)
+          promise.catch(noop)
+        }
+        promise.then(rerun, rerun)
+        context.abort()
+      }
     })
 
     return {
