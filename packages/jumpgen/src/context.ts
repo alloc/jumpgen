@@ -312,6 +312,8 @@ export function createJumpgenContext<
     },
     /**
      * Any data that should be preserved between generator runs.
+     *
+     * Note: This gets cleared if a critical file is changed.
      */
     store,
     /**
