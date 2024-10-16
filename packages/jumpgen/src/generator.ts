@@ -18,7 +18,9 @@ export type Context = Omit<
 export type Jumpgen<Result> = PromiseLike<Result> & {
   events: JumpgenEventEmitter
   /**
-   * In watch mode
+   * Abort the current generator run and stop watching for changes (if in
+   * watch mode). Afterward, the generator cannot be reused, so you have to
+   * create a new instance.
    */
   stop(): Promise<void>
 }
