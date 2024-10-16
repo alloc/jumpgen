@@ -315,7 +315,9 @@ export function createJumpgenContext<
      *
      * Note: This gets cleared if a critical file is changed.
      */
-    store,
+    get store() {
+      return store
+    },
     /**
      * Any files passed to `watch`, mapped to the files blamed for their
      * changes (i.e. the files that caused them to be watched in the first
