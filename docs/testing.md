@@ -16,7 +16,7 @@ In this example, we'll use Vitest.
    pnpm add memfs vitest -D
    ```
 
-2. Create the `__mocks__/fs.cjs` module in your test folder. This will contain the mock implementation. It's recommended to use CommonJS syntax, so you don't have to manually export each function from `memfs`.
+1. Create the `__mocks__/fs.cjs` module in your test folder. This will contain the mock implementation. It's recommended to use CommonJS syntax, so you don't have to manually export each function from `memfs`.
 
    ```js
    const { fs } = require('memfs')
@@ -25,7 +25,21 @@ In this example, we'll use Vitest.
 
    You don't need to mock `fs/promises`, since jumpgen only uses synchronous file system APIs.
 
-3. In your test file, tell Vitest to use the mock implementation of `fs`.
+1. To ensure the filesystem mock is actually used, we need to tell Vitest to process Jumpgen, since the default behavior is to avoid processing `node_modules` entirely. In your Vitest config, add the following:
+
+   ```js
+   export default defineConfig({
+     test: {
+       server: {
+         deps: {
+           inline: ['jumpgen'],
+         },
+       },
+     },
+   })
+   ```
+
+1. In your test file, tell Vitest to use the mock implementation of `fs`.
 
    ```js
    import { beforeEach, vi } from 'vitest'
