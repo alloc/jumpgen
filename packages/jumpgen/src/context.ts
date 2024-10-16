@@ -289,6 +289,10 @@ export function createJumpgenContext<
     get store() {
       return store
     },
+    /**
+     * Files that have been accessed with `read` or watched with `watch`
+     * (except for those watched with the `cause` option set).
+     */
     get watchedFiles() {
       return matcher.watchedFiles
     },
