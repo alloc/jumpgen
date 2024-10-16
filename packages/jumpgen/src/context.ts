@@ -67,15 +67,24 @@ export type ListOptions = {
   watch?: boolean
 }
 
+function resolveOptions(options: JumpgenOptions) {
+  return {
+    ...options,
+    root: options.root ? path.resolve(options.root) : process.cwd(),
+    watch: options.watch ?? false,
+    events: options.events ?? new EventEmitter(),
+  }
+}
+
 export function createJumpgenContext(
   generatorName: string,
-  options: JumpgenOptions = {}
+  rawOptions: JumpgenOptions = {}
 ) {
-  const { events = new EventEmitter(), watch = false } = options
-  const root = options.root ? path.resolve(options.root) : process.cwd()
+  const options = resolveOptions(rawOptions)
+  const { root, events } = options
 
   const matcher = new MatcherArray()
-  const watcher = watch
+  const watcher = options.watch
     ? chokidar.watch([], {
         ignored(file) {
           return !matcher.match(file)
@@ -96,15 +105,16 @@ export function createJumpgenContext(
     ctrl = new AbortController()
     matcher.clear()
 
-    const initialPaths = isArray(watch) ? watch : undefined
-    initialPaths?.forEach(p => {
-      p = path.resolve(root, p)
-      if (isExistingFile(p)) {
-        matcher.addFile(p)
-      } else {
-        matcher.add(p)
-      }
-    })
+    if (isArray(options.watch)) {
+      options.watch.forEach(p => {
+        p = path.resolve(root, p)
+        if (isExistingFile(p)) {
+          matcher.addFile(p)
+        } else {
+          matcher.add(p)
+        }
+      })
+    }
   }
 
   /**
@@ -265,6 +275,19 @@ export function createJumpgenContext(
     events.emit('write', file, generatorName)
   }
 
+  /**
+   * Add files to trigger a generator rerun when they are changed. This is
+   * only useful for files that weren't read using Jumpgen context methods
+   * (for example, if you're using a library that reads from the filesystem
+   * on its own).
+   */
+  function watch(files: string | string[]) {
+    files = isArray(files) ? files : [files]
+    files.forEach(file => {
+      matcher.addFile(path.resolve(root, file))
+    })
+  }
+
   function abort() {
     ctrl.abort()
   }
@@ -325,6 +348,7 @@ export function createJumpgenContext(
     read,
     tryRead,
     write,
+    watch,
     abort,
     reset,
   }
