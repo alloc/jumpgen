@@ -16,6 +16,16 @@ import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
 import { MatcherArray } from './util/matcher-array'
 
+/**
+ * A map of file paths to their corresponding change events.
+ */
+export type FileChangeLog = Map<string, FileChange>
+export type FileChange = {
+  event: 'add' | 'change' | 'unlink'
+  /** File path, relative to root directory. */
+  file: string
+}
+
 export type JumpgenContext = ReturnType<typeof createJumpgenContext>
 
 export function createJumpgenContext<
@@ -47,12 +57,25 @@ export function createJumpgenContext<
   /**
    * @internal You should not call this method directly.
    */
-  function reset() {
+  function reset(changes?: FileChangeLog) {
     ctrl = new AbortController()
-    store = {} as TStore
-    matcher.clear()
 
-    if (isArray(options.watch)) {
+    let isHardReset = true
+    if (changes) {
+      if (some(changes.keys(), file => matcher.isFileCritical(file))) {
+        store = {} as TStore
+        matcher.clear()
+      } else {
+        isHardReset = false
+        for (const { file, event } of changes.values()) {
+          if (event !== 'add') {
+            matcher.forgetFile(path.resolve(root, file))
+          }
+        }
+      }
+    }
+
+    if (isHardReset && isArray(options.watch)) {
       options.watch.forEach(p => {
         p = path.resolve(root, p)
         if (isExistingFile(p)) {
@@ -227,11 +250,10 @@ export function createJumpgenContext<
       return matcher.blamedFiles
     },
     /**
-     * Files that have been accessed with `read` or watched with `watch`
-     * (except for those watched with the `cause` option set).
+     * Files that have been accessed with `read` or watched with `watch`.
      */
-    get watchedFiles() {
-      return matcher.watchedFiles
+    get accessedFiles() {
+      return matcher.accessedFiles
     },
     watcher,
     /**
@@ -250,11 +272,12 @@ export function createJumpgenContext<
       return ctrl.signal
     },
     /**
-     * Files that were changed before the current generator run. If empty,
-     * this is the generator's first run. The file paths within are always
-     * relative to the root directory.
+     * Files that were modified, added, or deleted between the current
+     * generator run and the previous one. If empty, this is the
+     * generator's first run. The file paths within are always relative to
+     * the root directory.
      */
-    changedFiles: new Set<string>(),
+    changes: [] as FileChange[],
     /**
      * Wrap a file path in a `File` object to make it a first-class citizen
      * that can be passed around and read/written without direct access to
@@ -297,4 +320,16 @@ function isExistingFile(path: string): boolean {
   } catch {
     return false
   }
+}
+
+function some<T>(
+  iterable: Iterable<T>,
+  predicate: (value: T) => boolean
+): boolean {
+  for (const value of iterable) {
+    if (predicate(value)) {
+      return true
+    }
+  }
+  return false
 }
