@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { isError, isPromise, noop } from 'radashi'
 import {
   createJumpgenContext,
@@ -49,6 +50,7 @@ export function jumpgen<Return>(
 
   return (options?: JumpgenOptions): Jumpgen<Awaited<Return>> => {
     const context = createJumpgenContext(generatorName, options)
+    const changedFiles = new Set<string>()
 
     let promise = run(context)
     promise.catch(noop)
@@ -64,9 +66,13 @@ export function jumpgen<Return>(
       }
       const rerun = () => {
         context.reset()
+        context.changedFiles = new Set(changedFiles)
+        changedFiles.clear()
+
         promise = run(context)
         promise.catch(noop)
       }
+      changedFiles.add(path.relative(context.root, file))
       promise.then(rerun, rerun)
       context.abort()
     })

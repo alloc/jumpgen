@@ -292,6 +292,12 @@ export function createJumpgenContext(
       return ctrl.signal
     },
     /**
+     * Files that were changed before the current generator run. If empty,
+     * this is the generator's first run. The file paths within are always
+     * relative to the root directory.
+     */
+    changedFiles: new Set<string>(),
+    /**
      * Wrap a file path in a `File` object to make it a first-class citizen
      * that can be passed around and read/written without direct access to
      * the Jumpgen context.
