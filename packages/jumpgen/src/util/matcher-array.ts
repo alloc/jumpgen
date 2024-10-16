@@ -1,6 +1,7 @@
 import { FSWatcher } from 'chokidar'
 import path from 'node:path'
 import picomatch from 'picomatch'
+import { castArray } from 'radashi'
 
 export type Matcher = {
   base: string
@@ -12,6 +13,7 @@ export type Matcher = {
 export class MatcherArray {
   #watchedFiles = new Set<string>()
   #criticalFiles = new Set<string>()
+  #blamedFiles = new Map<string, Set<string>>()
   #matchers: Matcher[] = []
 
   /**
@@ -22,10 +24,15 @@ export class MatcherArray {
 
   /**
    * A set of files that have been explicitly watched. Base directories
-   * from `this.add` calls are not included.
+   * from `this.add` calls are not included. Files added with a `cause`
+   * option are not included.
    */
   get watchedFiles(): ReadonlySet<string> {
     return this.#watchedFiles
+  }
+
+  get blamedFiles(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.#blamedFiles
   }
 
   isFileCritical(file: string): boolean {
@@ -72,11 +79,25 @@ export class MatcherArray {
     }
   }
 
-  addFile(file: string, options?: { critical?: boolean }): void {
+  addFile(
+    file: string,
+    options?: { cause?: string | string[]; critical?: boolean }
+  ): void {
     this.watcher?.add(file)
-    this.#watchedFiles.add(file)
     if (options?.critical) {
       this.#criticalFiles.add(file)
+    }
+    if (options?.cause) {
+      let blamedFiles = this.#blamedFiles.get(file)
+      if (!blamedFiles) {
+        blamedFiles = new Set()
+        this.#blamedFiles.set(file, blamedFiles)
+      }
+      for (const cause of castArray(options.cause)) {
+        blamedFiles.add(cause)
+      }
+    } else {
+      this.#watchedFiles.add(file)
     }
   }
 
@@ -103,6 +124,7 @@ export class MatcherArray {
     }
     this.#watchedFiles.clear()
     this.#criticalFiles.clear()
+    this.#blamedFiles.clear()
     this.#matchers.length = 0
   }
 }
