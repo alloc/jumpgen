@@ -67,6 +67,24 @@ export type ListOptions = {
   watch?: boolean
 }
 
+export type ReadOptions = {
+  /**
+   * The file encoding. By default, the file is read as a Buffer object.
+   *
+   * @default null
+   * @see https://nodejs.org/api/buffer.html#buffers-and-character-encodings
+   */
+  encoding?: BufferEncoding | null | undefined
+  /**
+   * Control the behavior of readFileSync. Set to `"a+"` to create a file
+   * if it doesn't exist.
+   *
+   * @default 'r'
+   * @see https://nodejs.org/api/fs.html#file-system-flags
+   */
+  flag?: 'r' | 'a+' | (string & {})
+}
+
 function resolveOptions(options: JumpgenOptions) {
   return {
     ...options,
@@ -157,42 +175,22 @@ export function createJumpgenContext(
    */
   function read(
     path: string,
-    options?: {
-      encoding?: null | undefined
-      flag?: string | undefined
-    } | null
+    options?: (ReadOptions & { encoding?: null | undefined }) | null
   ): Buffer
 
   function read(
     path: string,
-    options:
-      | {
-          encoding: BufferEncoding
-          flag?: string | undefined
-        }
-      | BufferEncoding
+    options: (ReadOptions & { encoding: BufferEncoding }) | BufferEncoding
   ): string
 
   function read(
     path: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
+    options?: ReadOptions | BufferEncoding | null
   ): string | Buffer
 
   function read(
     file: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
+    options?: ReadOptions | BufferEncoding | null
   ): any {
     file = path.resolve(root, file)
 
@@ -206,42 +204,22 @@ export function createJumpgenContext(
    */
   function tryRead(
     path: string,
-    options?: {
-      encoding?: null | undefined
-      flag?: string | undefined
-    } | null
+    options?: (ReadOptions & { encoding?: null | undefined }) | null
   ): Buffer | null
 
   function tryRead(
     path: string,
-    options:
-      | {
-          encoding: BufferEncoding
-          flag?: string | undefined
-        }
-      | BufferEncoding
+    options: (ReadOptions & { encoding: BufferEncoding }) | BufferEncoding
   ): string | null
 
   function tryRead(
     path: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
+    options?: ReadOptions | BufferEncoding | null
   ): string | Buffer | null
 
   function tryRead(
     file: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
+    options?: ReadOptions | BufferEncoding | null
   ): any {
     try {
       return read(file, options)
