@@ -277,7 +277,12 @@ export function createJumpgenContext<
 
   const context = {
     [kJumpgenContext]: true,
-    root,
+    /**
+     * The root directory from which all file operations are relative.
+     */
+    get root() {
+      return root
+    },
     /**
      * Any data that should be preserved between generator runs.
      */
