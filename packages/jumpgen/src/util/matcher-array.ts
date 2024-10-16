@@ -11,6 +11,7 @@ export type Matcher = {
 
 export class MatcherArray {
   #watchedFiles = new Set<string>()
+  #criticalFiles = new Set<string>()
   #matchers: Matcher[] = []
 
   /**
@@ -25,6 +26,10 @@ export class MatcherArray {
    */
   get watchedFiles(): ReadonlySet<string> {
     return this.#watchedFiles
+  }
+
+  isFileCritical(file: string): boolean {
+    return this.#criticalFiles.has(file)
   }
 
   add(patterns: string | string[], options?: picomatch.PicomatchOptions): void {
@@ -67,9 +72,12 @@ export class MatcherArray {
     }
   }
 
-  addFile(file: string): void {
+  addFile(file: string, options?: { critical?: boolean }): void {
     this.watcher?.add(file)
     this.#watchedFiles.add(file)
+    if (options?.critical) {
+      this.#criticalFiles.add(file)
+    }
   }
 
   match(file: string): boolean {
@@ -94,6 +102,7 @@ export class MatcherArray {
       }
     }
     this.#watchedFiles.clear()
+    this.#criticalFiles.clear()
     this.#matchers.length = 0
   }
 }
