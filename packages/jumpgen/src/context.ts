@@ -120,6 +120,9 @@ export function createJumpgenContext<
 
   reset()
 
+  /**
+   * @internal You should not call this method directly.
+   */
   function reset() {
     ctrl = new AbortController()
     store = {} as TStore
