@@ -287,6 +287,10 @@ export function createJumpgenContext<
      * Any data that should be preserved between generator runs.
      */
     store,
+    /**
+     * Files that have been accessed with `read` or watched with `watch`
+     * (except for those watched with the `cause` option set).
+     */
     get watchedFiles() {
       return matcher.watchedFiles
     },
