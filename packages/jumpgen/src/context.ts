@@ -2,7 +2,7 @@ import chokidar from 'chokidar'
 import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import path from 'node:path'
-import { isArray, isString } from 'radashi'
+import { isArray, isObject, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
 import { File } from './file'
 import { kJumpgenContext } from './symbols'
@@ -76,6 +76,15 @@ export type ReadOptions = {
    */
   encoding?: BufferEncoding | null | undefined
   /**
+   * When true, changes to this file will ”hard reset” the generator,
+   * resetting its `state` object and clearing the list of watched files.
+   * This is most useful when reading ”config files” which have widespread
+   * effects on the entire generation process.
+   *
+   * @default false
+   */
+  critical?: boolean
+  /**
    * Control the behavior of readFileSync. Set to `"a+"` to create a file
    * if it doesn't exist.
    *
@@ -96,6 +105,9 @@ export type WatchOptions = {
    * invalidate your generator's data store. Also, a watched file may be
    * automatically unwatched if all blamed files have been changed or
    * deleted.
+   *
+   * When a “critical” file is passed here, related file changes will reset
+   * the generator's state as if the critical file itself was changed.
    */
   cause?: string | string[]
 }
@@ -214,7 +226,7 @@ export function createJumpgenContext<
   ): any {
     file = path.resolve(root, file)
 
-    matcher.addFile(file)
+    matcher.addFile(file, isObject(options) ? options : undefined)
     return fs.readFileSync(file, options)
   }
 
@@ -300,6 +312,8 @@ export function createJumpgenContext<
     },
     /**
      * Any data that should be preserved between generator runs.
+     *
+     * Note: This gets cleared if a critical file is changed.
      */
     get store() {
       return store

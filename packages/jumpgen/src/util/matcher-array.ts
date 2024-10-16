@@ -13,6 +13,7 @@ export type Matcher = {
 export class MatcherArray {
   #watchedFiles = new Set<string>()
   #blamedFiles = new Map<string, Set<string>>()
+  #criticalFiles = new Set<string>()
   #matchers: Matcher[] = []
 
   /**
@@ -32,6 +33,10 @@ export class MatcherArray {
 
   get blamedFiles(): ReadonlyMap<string, ReadonlySet<string>> {
     return this.#blamedFiles
+  }
+
+  isFileCritical(file: string): boolean {
+    return this.#criticalFiles.has(file)
   }
 
   add(patterns: string | string[], options?: picomatch.PicomatchOptions): void {
@@ -74,9 +79,16 @@ export class MatcherArray {
     }
   }
 
-  addFile(file: string, options?: { cause?: string | string[] }): void {
+  addFile(
+    file: string,
+    options?: { cause?: string | string[]; critical?: boolean }
+  ): void {
     this.watcher?.add(file)
     this.#watchedFiles.add(file)
+
+    if (options?.critical) {
+      this.#criticalFiles.add(file)
+    }
 
     if (options?.cause) {
       let blamedFiles = this.#blamedFiles.get(file)
@@ -113,6 +125,7 @@ export class MatcherArray {
     }
     this.#watchedFiles.clear()
     this.#blamedFiles.clear()
+    this.#criticalFiles.clear()
     this.#matchers.length = 0
   }
 }
