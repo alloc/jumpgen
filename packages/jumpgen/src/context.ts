@@ -85,6 +85,21 @@ export type ReadOptions = {
   flag?: 'r' | 'a+' | (string & {})
 }
 
+export type WatchOptions = {
+  /**
+   * Files to blame for these unaccessed files' need to be watched. Also
+   * known as associative watching, this is useful when third party code is
+   * accessing files in a way you can't control.
+   *
+   * When this option is set, the blamed files will be included in
+   * `changedFiles` instead of the watched files, so you can more easily
+   * invalidate your generator's data store. Also, a watched file may be
+   * automatically unwatched if all blamed files have been changed or
+   * deleted.
+   */
+  cause?: string | string[]
+}
+
 function resolveOptions(options: JumpgenOptions) {
   return {
     ...options,
@@ -264,10 +279,10 @@ export function createJumpgenContext<
    * (for example, if you're using a library that reads from the filesystem
    * on its own).
    */
-  function watch(files: string | string[]) {
+  function watch(files: string | string[], options?: WatchOptions) {
     files = isArray(files) ? files : [files]
     files.forEach(file => {
-      matcher.addFile(path.resolve(root, file))
+      matcher.addFile(path.resolve(root, file), options)
     })
   }
 
@@ -287,6 +302,17 @@ export function createJumpgenContext<
      * Any data that should be preserved between generator runs.
      */
     store,
+    /**
+     * Any files passed to `watch`, mapped to the files blamed for their
+     * changes (i.e. the files that caused them to be watched in the first
+     * place).
+     *
+     * If you didn't set the `cause` option when calling `watch`, the
+     * watched files won't be in here.
+     */
+    get blamedFiles() {
+      return matcher.blamedFiles
+    },
     /**
      * Files that have been accessed with `read` or watched with `watch`
      * (except for those watched with the `cause` option set).
