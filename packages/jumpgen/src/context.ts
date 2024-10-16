@@ -94,12 +94,13 @@ function resolveOptions(options: JumpgenOptions) {
   }
 }
 
-export function createJumpgenContext(
-  generatorName: string,
-  rawOptions: JumpgenOptions = {}
-) {
+export function createJumpgenContext<
+  TStore extends Record<string, any> = Record<string, never>
+>(generatorName: string, rawOptions: JumpgenOptions = {}) {
   const options = resolveOptions(rawOptions)
   const { root, events } = options
+
+  let store = {} as TStore
 
   const matcher = new MatcherArray()
   const watcher = options.watch
@@ -121,6 +122,7 @@ export function createJumpgenContext(
 
   function reset() {
     ctrl = new AbortController()
+    store = {} as TStore
     matcher.clear()
 
     if (isArray(options.watch)) {
@@ -273,6 +275,12 @@ export function createJumpgenContext(
   const context = {
     [kJumpgenContext]: true,
     root,
+    /**
+     * Any data that should be preserved between generator runs.
+     */
+    get store() {
+      return store
+    },
     get watchedFiles() {
       return matcher.watchedFiles
     },
