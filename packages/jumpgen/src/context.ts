@@ -1,7 +1,7 @@
 import chokidar from 'chokidar'
 import fs from 'node:fs'
 import path from 'node:path'
-import { isArray, isObject, isString } from 'radashi'
+import { isArray, isObject, isString, select } from 'radashi'
 import { globSync } from 'tinyglobby'
 import { JumpgenOptions } from '../dist/context'
 import { File } from './file'
@@ -15,6 +15,7 @@ import {
 import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
 import { MatcherArray } from './util/matcher-array'
+import { memoLastCall } from './util/memoLastCall'
 
 /**
  * A map of file paths to their corresponding change events.
@@ -222,6 +223,10 @@ export function createJumpgenContext<
     ctrl.abort()
   }
 
+  let getAddedFiles: (changes: FileChange[]) => string[]
+  let getChangedFiles: (changes: FileChange[]) => string[]
+  let getUnlinkedFiles: (changes: FileChange[]) => string[]
+
   const context = {
     [kJumpgenContext]: true,
     /**
@@ -278,6 +283,48 @@ export function createJumpgenContext<
      * the root directory.
      */
     changes: [] as FileChange[],
+    /**
+     * Files that were added between the current generator run and the
+     * previous one. The file paths within are always relative to the root
+     * directory.
+     */
+    get addedFiles() {
+      return (getAddedFiles ||= memoLastCall(changes =>
+        select(
+          changes,
+          change => change.file,
+          change => change.event === 'add'
+        )
+      ))(this.changes)
+    },
+    /**
+     * Files that were changed between the current generator run and the
+     * previous one. The file paths within are always relative to the root
+     * directory.
+     */
+    get changedFiles() {
+      return (getChangedFiles ||= memoLastCall(changes =>
+        select(
+          changes,
+          change => change.file,
+          change => change.event === 'change'
+        )
+      ))(this.changes)
+    },
+    /**
+     * Files that were unlinked between the current generator run and the
+     * previous one. The file paths within are always relative to the root
+     * directory.
+     */
+    get unlinkedFiles() {
+      return (getUnlinkedFiles ||= memoLastCall(changes =>
+        select(
+          changes,
+          change => change.file,
+          change => change.event === 'unlink'
+        )
+      ))(this.changes)
+    },
     /**
      * Wrap a file path in a `File` object to make it a first-class citizen
      * that can be passed around and read/written without direct access to
