@@ -1,6 +1,7 @@
 import EventEmitter from 'node:events'
-import { JumpgenEventEmitter, JumpgenOptions } from './context'
+import { JumpgenEventEmitter } from './events'
 import { Jumpgen } from './generator'
+import { JumpgenOptions } from './options'
 
 /**
  * Combines multiple generators into a single generator that runs them all
