@@ -18,8 +18,8 @@ export function compose<Result>(
         return Promise.all(runners).then(onfulfilled, onrejected)
       },
       events,
-      async stop() {
-        await Promise.all(runners.map(runner => runner.stop()))
+      async destroy() {
+        await Promise.all(runners.map(runner => runner.destroy()))
       },
     }
   }

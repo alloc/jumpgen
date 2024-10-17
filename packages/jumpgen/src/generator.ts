@@ -11,7 +11,7 @@ export type { JumpgenEventEmitter, JumpgenOptions }
 
 export type Context = Omit<
   JumpgenContext,
-  'abort' | 'events' | 'reset' | 'watcher'
+  'abort' | 'destroy' | 'events' | 'reset' | 'watcher'
 >
 
 export type Jumpgen<Result> = PromiseLike<Result> & {
@@ -21,7 +21,7 @@ export type Jumpgen<Result> = PromiseLike<Result> & {
    * watch mode). Afterward, the generator cannot be reused, so you have to
    * create a new instance.
    */
-  stop(): Promise<void>
+  destroy(): Promise<void>
 }
 
 export function jumpgen<Return>(
@@ -107,10 +107,7 @@ export function jumpgen<Return>(
         return promise.then(onfulfilled, onrejected)
       },
       events: context.events,
-      async stop() {
-        context.abort()
-        await context.watcher?.close()
-      },
+      destroy: context.destroy,
     }
   }
 }

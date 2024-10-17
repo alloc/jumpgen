@@ -265,6 +265,13 @@ export function createJumpgenContext<
     ctrl.abort()
   }
 
+  async function destroy() {
+    ctrl.abort()
+    if (watcher) {
+      await Promise.all([watcher.close(), existenceWatcher?.close()])
+    }
+  }
+
   const context = {
     [kJumpgenContext]: true,
     /**
@@ -355,6 +362,7 @@ export function createJumpgenContext<
     write,
     watch,
     abort,
+    destroy,
     reset,
   }
 
