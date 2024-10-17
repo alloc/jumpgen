@@ -27,6 +27,7 @@ export type FileChange = {
 }
 
 export type JumpgenContext = ReturnType<typeof createJumpgenContext>
+export type JumpgenFS = JumpgenContext['fs']
 
 export function createJumpgenContext<
   TStore extends Record<string, any> = Record<string, never>
@@ -351,16 +352,21 @@ export function createJumpgenContext<
      * ```
      */
     dedent,
-    scan,
-    list,
-    read,
-    tryRead,
-    stat,
-    exists,
-    fileExists,
-    directoryExists,
-    write,
-    watch,
+    /**
+     * A collection of filesystem-related methods.
+     */
+    fs: {
+      scan,
+      list,
+      read,
+      tryRead,
+      stat,
+      exists,
+      fileExists,
+      directoryExists,
+      write,
+      watch,
+    },
     abort,
     destroy,
     reset,

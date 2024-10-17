@@ -5,7 +5,7 @@ import { JumpgenEventEmitter } from './events'
 import { JumpgenOptions } from './options'
 
 export { compose } from './compose'
-export type { FileChange } from './context'
+export type { FileChange, JumpgenFS } from './context'
 export { File } from './file'
 export type { JumpgenEventEmitter, JumpgenOptions }
 

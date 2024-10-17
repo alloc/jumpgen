@@ -3,27 +3,29 @@ import { kJumpgenContext } from './symbols'
 
 type FileContext = {
   root: string
-  read(
-    path: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
-  ): string | Buffer
-  tryRead(
-    path: string,
-    options?:
-      | {
-          encoding?: BufferEncoding | null | undefined
-          flag?: string | undefined
-        }
-      | BufferEncoding
-      | null
-  ): string | Buffer | null
-  write(path: string, data: string | Buffer): void
+  fs: {
+    read(
+      path: string,
+      options?:
+        | {
+            encoding?: BufferEncoding | null | undefined
+            flag?: string | undefined
+          }
+        | BufferEncoding
+        | null
+    ): string | Buffer
+    tryRead(
+      path: string,
+      options?:
+        | {
+            encoding?: BufferEncoding | null | undefined
+            flag?: string | undefined
+          }
+        | BufferEncoding
+        | null
+    ): string | Buffer | null
+    write(path: string, data: string | Buffer): void
+  }
 }
 
 const getFileContext = (file: File) =>
@@ -86,7 +88,7 @@ export class File {
       | BufferEncoding
       | null
   ): any {
-    return getFileContext(this).read(this.path, options)
+    return getFileContext(this).fs.read(this.path, options)
   }
 
   /**
@@ -128,7 +130,7 @@ export class File {
       | BufferEncoding
       | null
   ): any {
-    return getFileContext(this).tryRead(this.path, options)
+    return getFileContext(this).fs.tryRead(this.path, options)
   }
 
   /**
@@ -137,6 +139,6 @@ export class File {
    * `write` event after the file is written.
    */
   write(data: string | Buffer): void {
-    getFileContext(this).write(this.path, data)
+    getFileContext(this).fs.write(this.path, data)
   }
 }
