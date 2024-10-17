@@ -9,8 +9,10 @@ export type { FileChange, JumpgenFS } from './context'
 export { File } from './file'
 export type { JumpgenEventEmitter, JumpgenOptions }
 
-export type Context = Omit<
-  JumpgenContext,
+export type Context<
+  TStore extends Record<string, any> = Record<string, never>
+> = Omit<
+  JumpgenContext<TStore>,
   'abort' | 'destroy' | 'events' | 'reset' | 'watcher'
 >
 
@@ -24,11 +26,13 @@ export type Jumpgen<Result> = PromiseLike<Result> & {
   destroy(): Promise<void>
 }
 
-export function jumpgen<Return>(
-  generatorName: string,
-  generator: (context: Context) => Return
-) {
-  async function run(context: JumpgenContext): Promise<Awaited<Return>> {
+export function jumpgen<
+  TStore extends Record<string, any> = Record<string, never>,
+  TReturn = void
+>(generatorName: string, generator: (context: Context<TStore>) => TReturn) {
+  async function run(
+    context: JumpgenContext<TStore>
+  ): Promise<Awaited<TReturn>> {
     // Give the caller a chance to attach event listeners.
     await Promise.resolve()
 
@@ -49,8 +53,8 @@ export function jumpgen<Return>(
     }
   }
 
-  return (options?: JumpgenOptions): Jumpgen<Awaited<Return>> => {
-    const context = createJumpgenContext(generatorName, options)
+  return (options?: JumpgenOptions): Jumpgen<Awaited<TReturn>> => {
+    const context = createJumpgenContext<TStore>(generatorName, options)
     const changes: FileChangeLog = new Map()
 
     let promise = run(context)

@@ -26,7 +26,10 @@ export type FileChange = {
   file: string
 }
 
-export type JumpgenContext = ReturnType<typeof createJumpgenContext>
+export type JumpgenContext<
+  TStore extends Record<string, any> = Record<string, never>
+> = ReturnType<typeof createJumpgenContext<TStore>>
+
 export type JumpgenFS = JumpgenContext['fs']
 
 export function createJumpgenContext<
