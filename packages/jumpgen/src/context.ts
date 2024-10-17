@@ -252,8 +252,8 @@ export function createJumpgenContext<
     /**
      * Files that have been accessed with `read` or watched with `watch`.
      */
-    get accessedFiles() {
-      return matcher.accessedFiles
+    get watchedFiles() {
+      return matcher.files
     },
     watcher,
     /**

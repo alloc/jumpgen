@@ -57,7 +57,7 @@ export function jumpgen<Return>(
     promise.catch(noop)
 
     context.watcher?.on('all', (event, file) => {
-      if (event === 'change' && !context.accessedFiles.has(file)) {
+      if (event === 'change' && !context.watchedFiles.has(file)) {
         // This file was only scanned, not read into memory, so changes to
         // its contents are not relevant.
         return
