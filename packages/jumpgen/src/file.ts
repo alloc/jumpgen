@@ -42,7 +42,11 @@ export class File {
    */
   readonly path: string
 
-  constructor(path: string, context: FileContext, private dirent?: fs.Dirent) {
+  constructor(
+    path: string,
+    context: FileContext,
+    /** @internal */ readonly dirent?: fs.Dirent
+  ) {
     Object.defineProperty(this, kJumpgenContext, { value: context })
     this.path = isAbsolute(path) ? relative(context.root, path) : path
   }
