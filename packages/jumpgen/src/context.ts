@@ -1,4 +1,4 @@
-import chokidar from 'chokidar'
+import chokidar, { EmitArgs } from 'chokidar'
 import fs from 'node:fs'
 import path from 'node:path'
 import { isArray, isObject, isString } from 'radashi'
@@ -47,6 +47,9 @@ export function createJumpgenContext<
       })
     : undefined
 
+  // Certain methods require only watching a path for its existence or for specific events.
+  let existenceWatcher: ExistenceWatcher | undefined
+
   // Update the watcher when matchers are added or removed.
   matcher.watcher = watcher
 
@@ -65,11 +68,15 @@ export function createJumpgenContext<
       if (some(changes.keys(), file => matcher.isFileCritical(file))) {
         store = {} as TStore
         matcher.clear()
+        existenceWatcher?.close()
+        existenceWatcher = undefined
       } else {
         isHardReset = false
-        for (const { file, event } of changes.values()) {
+        for (let { file, event } of changes.values()) {
           if (event !== 'add') {
-            matcher.forgetFile(path.resolve(root, file))
+            file = path.resolve(root, file)
+            matcher.forgetFile(file)
+            existenceWatcher?.forget(file)
           }
         }
       }
@@ -178,6 +185,42 @@ export function createJumpgenContext<
     } catch {
       return null
     }
+  }
+
+  function stat(file: string): fs.Stats | undefined {
+    file = path.resolve(root, file)
+
+    matcher.addFile(file)
+    return fs.statSync(file, { throwIfNoEntry: false })
+  }
+
+  function exists(file: string): boolean {
+    file = path.resolve(root, file)
+    if (options.watch) {
+      existenceWatcher ??= createExistenceWatcher(matcher.files)
+      existenceWatcher.watch(file)
+    }
+    return fs.existsSync(file)
+  }
+
+  function fileExists(file: string): boolean {
+    file = path.resolve(root, file)
+    if (options.watch) {
+      existenceWatcher ??= createExistenceWatcher(matcher.files)
+      existenceWatcher.watchFile(file)
+    }
+    const stats = fs.statSync(file, { throwIfNoEntry: false })
+    return stats !== undefined && stats.isFile()
+  }
+
+  function directoryExists(file: string): boolean {
+    file = path.resolve(root, file)
+    if (options.watch) {
+      existenceWatcher ??= createExistenceWatcher(matcher.files)
+      existenceWatcher.watchDirectory(file)
+    }
+    const stats = fs.statSync(file, { throwIfNoEntry: false })
+    return stats !== undefined && stats.isDirectory()
   }
 
   /**
@@ -305,6 +348,10 @@ export function createJumpgenContext<
     list,
     read,
     tryRead,
+    stat,
+    exists,
+    fileExists,
+    directoryExists,
     write,
     watch,
     abort,
@@ -332,4 +379,89 @@ function some<T>(
     }
   }
   return false
+}
+
+type ExistenceWatcher = ReturnType<typeof createExistenceWatcher>
+
+// This watcher only cares about add/unlink events. It's only used when
+// the `exists` method is called, so we initialize it lazily.
+function createExistenceWatcher(watchedFiles: ReadonlySet<string>) {
+  const watcher = chokidar.watch([], {
+    depth: 0,
+    ignoreInitial: true,
+    ignorePermissionErrors: true,
+  })
+
+  let existencePaths: Set<string> | undefined
+  let fileExistencePaths: Set<string> | undefined
+  let dirExistencePaths: Set<string> | undefined
+
+  const isRelevantEvent = (args: EmitArgs): boolean => {
+    const [event] = args
+
+    if (event === 'error') {
+      return true
+    }
+
+    if (event === 'change') {
+      return false
+    }
+
+    const [, file] = args as [string, string]
+
+    // If a file is both checked for existence and accessed, bail out to
+    // avoid sending duplicate events.
+    if (watchedFiles.has(file)) {
+      return false
+    }
+
+    if (existencePaths?.has(file)) {
+      return true
+    }
+
+    if (event === 'add' || event === 'unlink') {
+      if (fileExistencePaths?.has(file)) {
+        return true
+      }
+      return !dirExistencePaths?.has(file)
+    }
+
+    if (dirExistencePaths?.has(file)) {
+      return true
+    }
+    return !fileExistencePaths?.has(file)
+  }
+
+  // Forward existence events to the main watcher.
+  watcher.on('all', (...args) => {
+    if (isRelevantEvent(args as EmitArgs)) {
+      watcher!.emitWithAll(args[0], args as EmitArgs)
+    }
+  })
+
+  const watch = (file: string, existencePaths: Set<string>) => {
+    existencePaths.add(file)
+    watcher.add(file)
+  }
+
+  return {
+    watch(file: string) {
+      watch(file, (existencePaths ??= new Set()))
+    },
+    watchFile(file: string) {
+      watch(file, (fileExistencePaths ??= new Set()))
+    },
+    watchDirectory(dir: string) {
+      watch(dir, (dirExistencePaths ??= new Set()))
+    },
+    forget(file: string) {
+      watcher.unwatch(file)
+      existencePaths?.delete(file)
+      fileExistencePaths?.delete(file)
+      dirExistencePaths?.delete(file)
+    },
+    close() {
+      return watcher.close()
+    },
+  }
 }
