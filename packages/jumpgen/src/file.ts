@@ -1,9 +1,14 @@
-import { isAbsolute, join, relative } from 'node:path'
+import fs from 'node:fs'
+import { basename, isAbsolute, join, relative } from 'node:path'
 import { kJumpgenContext } from './symbols'
 
 type FileContext = {
   root: string
   fs: {
+    exists(path: string): boolean
+    fileExists(path: string, options?: { dirent?: fs.Dirent }): boolean
+    symlinkExists(path: string, options?: { dirent?: fs.Dirent }): boolean
+    directoryExists(path: string, options?: { dirent?: fs.Dirent }): boolean
     read(
       path: string,
       options?:
@@ -37,9 +42,16 @@ export class File {
    */
   readonly path: string
 
-  constructor(path: string, context: FileContext) {
+  constructor(path: string, context: FileContext, private dirent?: fs.Dirent) {
     Object.defineProperty(this, kJumpgenContext, { value: context })
     this.path = isAbsolute(path) ? relative(context.root, path) : path
+  }
+
+  /**
+   * The file's base name.
+   */
+  get name() {
+    return basename(this.path)
   }
 
   /**
@@ -47,6 +59,28 @@ export class File {
    */
   get absolutePath() {
     return join(getFileContext(this).root, this.path)
+  }
+
+  exists() {
+    return getFileContext(this).fs.exists(this.path)
+  }
+
+  isFile() {
+    return getFileContext(this).fs.fileExists(this.path, {
+      dirent: this.dirent,
+    })
+  }
+
+  isDirectory() {
+    return getFileContext(this).fs.directoryExists(this.path, {
+      dirent: this.dirent,
+    })
+  }
+
+  isSymlink() {
+    return getFileContext(this).fs.symlinkExists(this.path, {
+      dirent: this.dirent,
+    })
   }
 
   /**

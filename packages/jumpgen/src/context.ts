@@ -117,10 +117,25 @@ export function createJumpgenContext<
    * relative path. In watch mode, the directory will be watched for
    * changes.
    */
-  function list(dir: string, options?: ListOptions): string[] {
+  function list(
+    dir: string,
+    options?: ListOptions & { withFileTypes?: false }
+  ): string[]
+
+  function list(
+    dir: string,
+    options: ListOptions & { withFileTypes: true }
+  ): File[]
+
+  function list(dir: string, options?: ListOptions): string[] | File[] {
     dir = path.resolve(root, dir)
     if (options?.watch !== false) {
       matcher.add(path.join(dir, '*'), { dot: true })
+    }
+    if (options?.withFileTypes) {
+      return fs
+        .readdirSync(dir, { withFileTypes: true })
+        .map(dirent => new File(path.join(dir, dirent.name), context, dirent))
     }
     const children = fs.readdirSync(dir)
     if (options?.absolute) {
@@ -197,28 +212,52 @@ export function createJumpgenContext<
 
   function exists(file: string): boolean {
     file = path.resolve(root, file)
-    if (options.watch) {
+    if (watcher) {
       existenceWatcher ??= createExistenceWatcher(matcher.files)
       existenceWatcher.watch(file)
     }
     return fs.existsSync(file)
   }
 
-  function fileExists(file: string): boolean {
+  type FileTypeOptions = {
+    /** @internal */
+    dirent?: fs.Dirent
+  }
+
+  function fileExists(file: string, options?: FileTypeOptions): boolean {
     file = path.resolve(root, file)
-    if (options.watch) {
+    if (watcher) {
       existenceWatcher ??= createExistenceWatcher(matcher.files)
       existenceWatcher.watchFile(file)
+    }
+    if (options?.dirent) {
+      return options.dirent.isFile()
     }
     const stats = fs.statSync(file, { throwIfNoEntry: false })
     return stats !== undefined && stats.isFile()
   }
 
-  function directoryExists(file: string): boolean {
+  function symlinkExists(file: string, options?: FileTypeOptions): boolean {
     file = path.resolve(root, file)
-    if (options.watch) {
+    if (watcher) {
+      existenceWatcher ??= createExistenceWatcher(matcher.files)
+      existenceWatcher.watch(file)
+    }
+    if (options?.dirent) {
+      return options.dirent.isSymbolicLink()
+    }
+    const stats = fs.statSync(file, { throwIfNoEntry: false })
+    return stats !== undefined && stats.isSymbolicLink()
+  }
+
+  function directoryExists(file: string, options?: FileTypeOptions): boolean {
+    file = path.resolve(root, file)
+    if (watcher) {
       existenceWatcher ??= createExistenceWatcher(matcher.files)
       existenceWatcher.watchDirectory(file)
+    }
+    if (options?.dirent) {
+      return options.dirent.isDirectory()
     }
     const stats = fs.statSync(file, { throwIfNoEntry: false })
     return stats !== undefined && stats.isDirectory()
@@ -363,6 +402,7 @@ export function createJumpgenContext<
       stat,
       exists,
       fileExists,
+      symlinkExists,
       directoryExists,
       write,
       watch,
