@@ -37,7 +37,10 @@ export class MatcherArray {
     return this.#criticalFiles.has(file)
   }
 
-  add(patterns: string | string[], options?: picomatch.PicomatchOptions): void {
+  add(
+    patterns: string | readonly string[],
+    options?: picomatch.PicomatchOptions
+  ): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
 

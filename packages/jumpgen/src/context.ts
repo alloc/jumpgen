@@ -102,14 +102,14 @@ export function createJumpgenContext<
    * `watch` option set to `false`.
    */
   function scan(
-    source: string | string[],
+    source: string | readonly string[],
     options: GlobOptions = {}
   ): string[] {
     options.cwd = path.resolve(root, options.cwd ?? '.')
     if (options.watch !== false) {
       matcher.add(source, options)
     }
-    return globSync(source, options)
+    return globSync(source as string | string[], options)
   }
 
   /**
@@ -294,7 +294,7 @@ export function createJumpgenContext<
    * (for example, if you're using a library that reads from the filesystem
    * on its own).
    */
-  function watch(files: string | string[], options?: WatchOptions) {
+  function watch(files: string | readonly string[], options?: WatchOptions) {
     files = isArray(files) ? files : [files]
     files.forEach(file => {
       matcher.addFile(path.resolve(root, file), options)
