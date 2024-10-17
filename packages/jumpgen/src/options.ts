@@ -56,12 +56,6 @@ export type ListOptions = {
    * @default true
    */
   watch?: boolean
-  /**
-   * Instead of returning file names, return `File` objects.
-   *
-   * @default false
-   */
-  withFileTypes?: boolean
 }
 
 export type ReadOptions = {
