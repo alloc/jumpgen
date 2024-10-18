@@ -19,6 +19,9 @@ export function compose<Result>(
         return Promise.all(runners).then(onfulfilled, onrejected)
       },
       events,
+      get watchedFiles() {
+        return new Set(runners.flatMap(runner => [...runner.watchedFiles]))
+      },
       waitForStart(timeout) {
         const promises = runners.map(runner => runner.waitForStart())
         if (timeout != null) {

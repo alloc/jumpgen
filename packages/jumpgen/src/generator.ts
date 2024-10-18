@@ -18,6 +18,7 @@ export type Context<
 
 export type Jumpgen<Result> = PromiseLike<Result> & {
   events: JumpgenEventEmitter
+  get watchedFiles(): ReadonlySet<string>
   /**
    * If you just updated some files programmatically, you can await a call
    * to this method to ensure that the generator has finished scanning the
@@ -123,6 +124,9 @@ export function jumpgen<
         return promise.then(onfulfilled, onrejected)
       },
       events: context.events,
+      get watchedFiles() {
+        return context.watchedFiles
+      },
       waitForStart(timeout) {
         if (timeout != null) {
           return Promise.race([
