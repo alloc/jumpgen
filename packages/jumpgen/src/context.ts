@@ -321,6 +321,12 @@ export function createJumpgenContext<
       return matcher.blamedFiles
     },
     /**
+     * Whether the generator is running in watch mode.
+     */
+    get isWatchMode() {
+      return !!watcher
+    },
+    /**
      * Files that have been accessed with `read` or watched with `watch`.
      */
     get watchedFiles() {
