@@ -198,6 +198,13 @@ export function createJumpgenContext<
     return fs.statSync(file, { throwIfNoEntry: false })
   }
 
+  function lstat(file: string): fs.Stats | undefined {
+    file = path.resolve(root, file)
+
+    matcher.addFile(file)
+    return fs.lstatSync(file, { throwIfNoEntry: false })
+  }
+
   function exists(file: string): boolean {
     file = path.resolve(root, file)
     if (watcher) {
@@ -374,6 +381,7 @@ export function createJumpgenContext<
       read,
       tryRead,
       stat,
+      lstat,
       exists,
       fileExists,
       symlinkExists,
