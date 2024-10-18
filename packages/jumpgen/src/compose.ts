@@ -1,4 +1,5 @@
 import EventEmitter from 'node:events'
+import { sleep } from 'radashi'
 import { JumpgenEventEmitter } from './events'
 import { Jumpgen } from './generator'
 import { JumpgenOptions } from './options'
@@ -18,6 +19,17 @@ export function compose<Result>(
         return Promise.all(runners).then(onfulfilled, onrejected)
       },
       events,
+      waitForStart(timeout) {
+        const promises = runners.map(runner => runner.waitForStart())
+        if (timeout != null) {
+          promises.push(
+            sleep(timeout).then(() => {
+              throw new Error('Timed out')
+            })
+          )
+        }
+        return Promise.race(promises)
+      },
       async destroy() {
         await Promise.all(runners.map(runner => runner.destroy()))
       },

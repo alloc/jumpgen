@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { isError, isPromise, noop } from 'radashi'
+import { isError, isPromise, noop, sleep } from 'radashi'
 import { createJumpgenContext, FileChangeLog, JumpgenContext } from './context'
 import { JumpgenEventEmitter } from './events'
 import { JumpgenOptions } from './options'
@@ -18,6 +18,12 @@ export type Context<
 
 export type Jumpgen<Result> = PromiseLike<Result> & {
   events: JumpgenEventEmitter
+  /**
+   * If you just updated some files programmatically, you can await a call
+   * to this method to ensure that the generator has finished scanning the
+   * file system for changes.
+   */
+  waitForStart(timeout?: number): Promise<void>
   /**
    * Abort the current generator run and stop watching for changes (if in
    * watch mode). Afterward, the generator cannot be reused, so you have to
@@ -56,6 +62,12 @@ export function jumpgen<
   return (options?: JumpgenOptions): Jumpgen<Awaited<TReturn>> => {
     const context = createJumpgenContext<TStore>(generatorName, options)
     const changes: FileChangeLog = new Map()
+
+    let startEvent = Promise.withResolvers<void>()
+    context.events.on('start', () => {
+      startEvent.resolve()
+      startEvent = Promise.withResolvers()
+    })
 
     let promise = run(context)
     promise.catch(noop)
@@ -111,6 +123,17 @@ export function jumpgen<
         return promise.then(onfulfilled, onrejected)
       },
       events: context.events,
+      waitForStart(timeout) {
+        if (timeout != null) {
+          return Promise.race([
+            startEvent.promise,
+            sleep(timeout).then(() => {
+              throw new Error('Timed out')
+            }),
+          ])
+        }
+        return startEvent.promise
+      },
       destroy: context.destroy,
     }
   }
