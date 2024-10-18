@@ -15,10 +15,5 @@
     "dev": "pnpm --parallel run dev",
     "build": "pnpm m run build",
     "lint": "pnpm --parallel run lint"
-  },
-  "pnpm": {
-    "overrides": {
-      "fdir": "workspace:*"
-    }
   }
 }
