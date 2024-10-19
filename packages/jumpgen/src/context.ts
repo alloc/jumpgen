@@ -26,6 +26,12 @@ export type FileChange = {
   file: string
 }
 
+export enum JumpgenStatus {
+  Pending = 'pending',
+  Running = 'running',
+  Finished = 'finished',
+}
+
 export type JumpgenContext<
   TStore extends Record<string, any> = Record<string, never>,
   TEvent extends { type: string } = never
@@ -281,8 +287,10 @@ export function createJumpgenContext<
   }
 
   function abort(reason?: any) {
-    ctrl.abort(reason)
-    events.emit('abort', reason, generatorName)
+    if (context.status === JumpgenStatus.Running) {
+      ctrl.abort(reason)
+      events.emit('abort', reason, generatorName)
+    }
   }
 
   async function destroy() {
@@ -293,6 +301,10 @@ export function createJumpgenContext<
 
   const context = {
     [kJumpgenContext]: true,
+    /**
+     * The current status of the generator.
+     */
+    status: JumpgenStatus.Pending,
     /**
      * The root directory from which all file operations are relative.
      */

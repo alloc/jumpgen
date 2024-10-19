@@ -1,7 +1,7 @@
 import EventEmitter from 'node:events'
 import { sleep } from 'radashi'
 import { JumpgenEventEmitter } from './events'
-import { Jumpgen } from './generator'
+import { Jumpgen, JumpgenStatus } from './generator'
 import { JumpgenOptions } from './options'
 
 /**
@@ -19,6 +19,13 @@ export function compose<TEvent extends { type: string }, TReturn>(
       generator({ ...options, events })
     )
     return {
+      get status() {
+        return runners.some(runner => runner.status === JumpgenStatus.Running)
+          ? JumpgenStatus.Running
+          : runners.some(runner => runner.status === JumpgenStatus.Pending)
+          ? JumpgenStatus.Pending
+          : JumpgenStatus.Finished
+      },
       then(onfulfilled, onrejected) {
         return Promise.all(runners).then(onfulfilled, onrejected)
       },

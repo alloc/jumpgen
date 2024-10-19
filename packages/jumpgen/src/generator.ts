@@ -1,12 +1,18 @@
 import path from 'node:path'
 import { isError, isPromise, noop, sleep } from 'radashi'
-import { createJumpgenContext, FileChangeLog, JumpgenContext } from './context'
+import {
+  createJumpgenContext,
+  FileChangeLog,
+  JumpgenContext,
+  JumpgenStatus,
+} from './context'
 import { JumpgenEventEmitter } from './events'
 import { JumpgenOptions } from './options'
 
 export { compose } from './compose'
 export type { FileChange, JumpgenFS } from './context'
 export { File } from './file'
+export { JumpgenStatus }
 export type { JumpgenEventEmitter, JumpgenOptions }
 
 export interface Context<
@@ -20,6 +26,10 @@ export interface Context<
 export interface Jumpgen<TEvent extends { type: string }, TResult>
   extends PromiseLike<TResult> {
   get events(): JumpgenEventEmitter<TEvent>
+  /**
+   * The current status of the generator.
+   */
+  get status(): JumpgenStatus
   get watchedFiles(): ReadonlySet<string>
   /**
    * If you just updated some files programmatically, you can await a call
@@ -56,15 +66,13 @@ export function jumpgen<
   generatorName: string,
   generator: (context: Context<TStore, TEvent>) => TReturn
 ) {
-  let running = false
-
   async function run(
     context: JumpgenContext<TStore, TEvent>
   ): Promise<Awaited<TReturn>> {
     // Give the caller a chance to attach event listeners.
     await Promise.resolve()
 
-    running = true
+    context.status = JumpgenStatus.Running
     context.events.emit('start', generatorName)
     try {
       let result: any = generator(context)
@@ -80,7 +88,7 @@ export function jumpgen<
       context.events.emit('error', error, generatorName)
       throw error
     } finally {
-      running = false
+      context.status = JumpgenStatus.Finished
     }
   }
 
@@ -150,9 +158,10 @@ export function jumpgen<
           }
         }
 
-        if (!context.signal.aborted) {
+        if (context.status !== JumpgenStatus.Pending) {
           promise.then(rerun, rerun)
           context.abort('watch')
+          context.status = JumpgenStatus.Pending
         }
       })
     }
@@ -162,6 +171,9 @@ export function jumpgen<
         return promise.then(onfulfilled, onrejected)
       },
       events: context.events,
+      get status() {
+        return context.status
+      },
       get watchedFiles() {
         return context.watchedFiles
       },
@@ -177,12 +189,12 @@ export function jumpgen<
         return startEvent.promise
       },
       rerun() {
-        if (!running) {
+        if (context.status === JumpgenStatus.Finished) {
           return rerun()
         }
-        // If already aborted by a rerun call or a file change, wait for
+        // If already scheduled by a rerun call or a file change, wait for
         // the generator to start before accessing the current promise.
-        if (context.signal.aborted) {
+        if (context.status === JumpgenStatus.Pending) {
           return startEvent.promise.then(() => promise)
         }
         // Otherwise, abort the current run and start a new one after the
