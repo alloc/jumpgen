@@ -1,7 +1,6 @@
-import chokidar, { EmitArgs } from 'chokidar'
 import fs from 'node:fs'
 import path from 'node:path'
-import { isArray, isObject, isString } from 'radashi'
+import { castArray, isArray, isObject, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
 import { File } from './file'
 import {
@@ -14,8 +13,8 @@ import {
 } from './options'
 import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
-import { MatcherArray } from './util/matcher-array'
 import { stripTrailingSlash } from './util/path'
+import { createJumpgenWatcher } from './util/watcher'
 
 /**
  * A map of file paths to their corresponding change events.
@@ -41,27 +40,9 @@ export function createJumpgenContext<
 
   let store = {} as TStore
 
-  const matcher = new MatcherArray()
-  const watcher = options.watch
-    ? chokidar.watch([], {
-        ignored(file) {
-          return !matcher.match(file)
-        },
-        ignoreInitial: true,
-        ignorePermissionErrors: true,
-      })
+  let watcher = options.watch
+    ? createJumpgenWatcher(generatorName, events)
     : undefined
-
-  if (watcher) {
-    const checkAddedPath = matcher.checkAddedPath.bind(matcher)
-    watcher.on('add', checkAddedPath).on('addDir', checkAddedPath)
-  }
-
-  // Certain methods require only watching a path for its existence or for specific events.
-  let existenceWatcher: ExistenceWatcher | undefined
-
-  // Update the watcher when matchers are added or removed.
-  matcher.watcher = watcher
 
   let ctrl: AbortController
 
@@ -73,37 +54,37 @@ export function createJumpgenContext<
   function reset(changes?: FileChangeLog) {
     ctrl = new AbortController()
 
-    let isHardReset = true
-    if (changes) {
-      if (some(changes.keys(), file => matcher.isFileCritical(file))) {
-        store = {} as TStore
-        matcher.clear()
-        existenceWatcher?.close()
-        existenceWatcher = undefined
-      } else {
-        isHardReset = false
-        for (let { file, event } of changes.values()) {
-          if (event !== 'add') {
-            file = path.resolve(root, file)
-            matcher.forgetFile(file)
-            existenceWatcher?.forget(file)
+    if (watcher) {
+      let isHardReset = true
+      if (changes) {
+        if (some(changes.keys(), watcher.isFileCritical)) {
+          store = {} as TStore
+          watcher.close()
+          watcher = createJumpgenWatcher(generatorName, events)
+        } else {
+          isHardReset = false
+          for (let { file, event } of changes.values()) {
+            if (event !== 'add') {
+              file = path.resolve(root, file)
+              watcher.unwatch(file)
+            }
           }
         }
       }
-    }
 
-    if (isHardReset && isArray(options.watch)) {
-      options.watch.forEach(input => {
-        const resolvedInput = path.resolve(root, input)
-        const stat = fs.statSync(resolvedInput, { throwIfNoEntry: false })
-        if (stat?.isFile()) {
-          matcher.addFile(resolvedInput)
-        } else if (stat?.isDirectory()) {
-          matcher.add(path.join(input, '**/*'), { cwd: root })
-        } else {
-          matcher.add(input, { cwd: root })
+      if (isHardReset && isArray(options.watch)) {
+        for (const input of options.watch) {
+          const resolvedInput = path.resolve(root, input)
+          const stat = fs.statSync(resolvedInput, { throwIfNoEntry: false })
+          if (stat?.isFile()) {
+            watcher.addFile(resolvedInput)
+          } else if (stat?.isDirectory()) {
+            watcher.add(path.join(input, '**/*'), { cwd: root })
+          } else {
+            watcher.add(input, { cwd: root })
+          }
         }
-      })
+      }
     }
   }
 
@@ -123,8 +104,8 @@ export function createJumpgenContext<
 
     const globOptions = { ...options, cwd }
 
-    if (watcher && globOptions.watch !== false) {
-      matcher.add(source, globOptions)
+    if (globOptions.watch !== false) {
+      watcher?.add(source, globOptions)
     }
 
     return globSync(source as string | string[], globOptions)
@@ -136,8 +117,8 @@ export function createJumpgenContext<
    * changes.
    */
   function list(dir: string, options?: ListOptions): string[] {
-    if (watcher && options?.watch !== false) {
-      matcher.add(path.join(dir, '*'), { cwd: root, dot: true })
+    if (options?.watch !== false) {
+      watcher?.add(path.join(dir, '*'), { cwd: root, dot: true })
     }
     dir = path.resolve(root, dir)
     const children = fs.readdirSync(dir)
@@ -171,9 +152,8 @@ export function createJumpgenContext<
     options?: ReadOptions | BufferEncoding | null
   ): any {
     file = path.resolve(root, file)
-    if (watcher) {
-      matcher.addFile(file, isObject(options) ? options : undefined)
-    }
+    watcher?.addFile(file, isObject(options) ? options : undefined)
+
     return fs.readFileSync(file, options)
   }
 
@@ -209,55 +189,45 @@ export function createJumpgenContext<
 
   function stat(file: string): fs.Stats | undefined {
     file = path.resolve(root, file)
-    if (watcher) {
-      matcher.addFile(file)
-    }
+    watcher?.addFile(file)
+
     return fs.statSync(file, { throwIfNoEntry: false })
   }
 
   function lstat(file: string): fs.Stats | undefined {
     file = path.resolve(root, file)
-    if (watcher) {
-      matcher.addFile(file)
-    }
+    watcher?.addFile(file)
+
     return fs.lstatSync(file, { throwIfNoEntry: false })
   }
 
   function exists(file: string): boolean {
     file = path.resolve(root, file)
-    if (watcher) {
-      existenceWatcher ??= createExistenceWatcher(matcher.files)
-      existenceWatcher.watch(file)
-    }
+    watcher?.exists.watch(file)
+
     return fs.existsSync(file)
   }
 
   function fileExists(file: string): boolean {
     file = path.resolve(root, file)
-    if (watcher) {
-      existenceWatcher ??= createExistenceWatcher(matcher.files)
-      existenceWatcher.watchFile(file)
-    }
+    watcher?.exists.watchFile(file)
+
     const stats = fs.statSync(file, { throwIfNoEntry: false })
     return stats !== undefined && stats.isFile()
   }
 
   function symlinkExists(file: string): boolean {
     file = path.resolve(root, file)
-    if (watcher) {
-      existenceWatcher ??= createExistenceWatcher(matcher.files)
-      existenceWatcher.watch(file)
-    }
+    watcher?.exists.watch(file)
+
     const stats = fs.statSync(file, { throwIfNoEntry: false })
     return stats !== undefined && stats.isSymbolicLink()
   }
 
   function directoryExists(file: string): boolean {
     file = path.resolve(root, file)
-    if (watcher) {
-      existenceWatcher ??= createExistenceWatcher(matcher.files)
-      existenceWatcher.watchDirectory(file)
-    }
+    watcher?.exists.watchDirectory(file)
+
     const stats = fs.statSync(file, { throwIfNoEntry: false })
     return stats !== undefined && stats.isDirectory()
   }
@@ -294,10 +264,12 @@ export function createJumpgenContext<
    * on its own).
    */
   function watch(files: string | readonly string[], options?: WatchOptions) {
-    files = isArray(files) ? files : [files]
-    files.forEach(file => {
-      matcher.addFile(path.resolve(root, file), options)
-    })
+    if (watcher) {
+      files = isArray(files) ? files : [files]
+      for (const file of castArray(files)) {
+        watcher.addFile(path.resolve(root, file), options)
+      }
+    }
   }
 
   function abort() {
@@ -306,9 +278,7 @@ export function createJumpgenContext<
 
   async function destroy() {
     ctrl.abort()
-    if (watcher) {
-      await Promise.all([watcher.close(), existenceWatcher?.close()])
-    }
+    await watcher?.close()
   }
 
   const context = {
@@ -335,8 +305,8 @@ export function createJumpgenContext<
      * If you didn't set the `cause` option when calling `watch`, the
      * watched files won't be in here.
      */
-    get blamedFiles() {
-      return matcher.blamedFiles
+    get blamedFiles(): ReadonlyMap<string, ReadonlySet<string>> {
+      return watcher?.blamedFiles ?? new Map()
     },
     /**
      * Whether the generator is running in watch mode.
@@ -348,15 +318,18 @@ export function createJumpgenContext<
      * Files that have been accessed with `read` or watched with `watch`.
      */
     get watchedFiles() {
-      return matcher.files
+      return watcher?.files ?? new Set()
     },
-    watcher,
     /**
      * Events related to the generator.
      *
+     * - "start" when a generator run begins
      * - "write" when a file is written
-     * - "finish" when a generator completes
+     * - "watch" when the file watcher sees something happen to a watched path
+     * - "finish" when a generator run completes
      * - "error" when an error occurs
+     *
+     * The generator may have its own custom events, too.
      */
     events,
     /**
@@ -431,89 +404,4 @@ function some<T>(
     }
   }
   return false
-}
-
-type ExistenceWatcher = ReturnType<typeof createExistenceWatcher>
-
-// This watcher only cares about add/unlink events. It's only used when
-// the `exists` method is called, so we initialize it lazily.
-function createExistenceWatcher(watchedFiles: ReadonlySet<string>) {
-  const watcher = chokidar.watch([], {
-    depth: 0,
-    ignoreInitial: true,
-    ignorePermissionErrors: true,
-  })
-
-  let existencePaths: Set<string> | undefined
-  let fileExistencePaths: Set<string> | undefined
-  let dirExistencePaths: Set<string> | undefined
-
-  const isRelevantEvent = (args: EmitArgs): boolean => {
-    const [event] = args
-
-    if (event === 'error') {
-      return true
-    }
-
-    if (event === 'change') {
-      return false
-    }
-
-    const [, file] = args as [string, string]
-
-    // If a file is both checked for existence and accessed, bail out to
-    // avoid sending duplicate events.
-    if (watchedFiles.has(file)) {
-      return false
-    }
-
-    if (existencePaths?.has(file)) {
-      return true
-    }
-
-    if (event === 'add' || event === 'unlink') {
-      if (fileExistencePaths?.has(file)) {
-        return true
-      }
-      return !dirExistencePaths?.has(file)
-    }
-
-    if (dirExistencePaths?.has(file)) {
-      return true
-    }
-    return !fileExistencePaths?.has(file)
-  }
-
-  // Forward existence events to the main watcher.
-  watcher.on('all', (...args) => {
-    if (isRelevantEvent(args as EmitArgs)) {
-      watcher!.emitWithAll(args[0], args as EmitArgs)
-    }
-  })
-
-  const watch = (file: string, existencePaths: Set<string>) => {
-    existencePaths.add(file)
-    watcher.add(file)
-  }
-
-  return {
-    watch(file: string) {
-      watch(file, (existencePaths ??= new Set()))
-    },
-    watchFile(file: string) {
-      watch(file, (fileExistencePaths ??= new Set()))
-    },
-    watchDirectory(dir: string) {
-      watch(dir, (dirExistencePaths ??= new Set()))
-    },
-    forget(file: string) {
-      watcher.unwatch(file)
-      existencePaths?.delete(file)
-      fileExistencePaths?.delete(file)
-      dirExistencePaths?.delete(file)
-    },
-    close() {
-      return watcher.close()
-    },
-  }
 }

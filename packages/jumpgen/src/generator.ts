@@ -11,10 +11,7 @@ export type { JumpgenEventEmitter, JumpgenOptions }
 
 export type Context<
   TStore extends Record<string, any> = Record<string, never>
-> = Omit<
-  JumpgenContext<TStore>,
-  'abort' | 'destroy' | 'events' | 'reset' | 'watcher'
->
+> = Omit<JumpgenContext<TStore>, 'abort' | 'destroy' | 'events' | 'reset'>
 
 export type Jumpgen<Result> = PromiseLike<Result> & {
   events: JumpgenEventEmitter
@@ -80,51 +77,60 @@ export function jumpgen<
     let promise = run(context)
     promise.catch(noop)
 
-    context.watcher?.on('all', (event, file) => {
-      if (event === 'change' && !context.watchedFiles.has(file)) {
-        // This file was only scanned, not read into memory, so changes to
-        // its contents are not relevant.
-        return
-      }
+    if (context.isWatchMode) {
+      context.events.on('watch', (event, file) => {
+        if (event === 'change' && !context.watchedFiles.has(file)) {
+          // This file was only scanned, not read into memory, so changes
+          // to its contents are not relevant.
+          return
+        }
 
-      // If the affected file has another file to “blame” for its changes,
-      // then treat this as a change to the blamed file.
-      const blamedFiles = context.blamedFiles.get(file)
-      if (blamedFiles) {
-        for (const blamedFile of blamedFiles) {
-          if (!changes.has(blamedFile)) {
-            changes.set(blamedFile, {
-              event: 'change',
-              file: path.relative(context.root, blamedFile),
+        // Simplify the event type for the sake of the change log.
+        if (event === 'addDir') {
+          event = 'add'
+        } else if (event === 'unlinkDir') {
+          event = 'unlink'
+        }
+
+        // If the affected file has another file to “blame” for its
+        // changes, then treat this as a change to the blamed file.
+        const blamedFiles = context.blamedFiles.get(file)
+        if (blamedFiles) {
+          for (const blamedFile of blamedFiles) {
+            if (!changes.has(blamedFile)) {
+              changes.set(blamedFile, {
+                event: 'change',
+                file: path.relative(context.root, blamedFile),
+              })
+            }
+          }
+        } else {
+          const lastChange = changes.get(file)
+          if (!lastChange) {
+            changes.set(file, {
+              event,
+              file: path.relative(context.root, file),
             })
+          } else if (event !== 'change') {
+            // Avoid overwriting "add" or "unlink" with "change".
+            lastChange.event = event
           }
         }
-      } else {
-        const lastChange = changes.get(file)
-        if (!lastChange) {
-          changes.set(file, {
-            event,
-            file: path.relative(context.root, file),
-          })
-        } else if (event !== 'change') {
-          // Avoid overwriting "add" or "unlink" with "change".
-          lastChange.event = event
-        }
-      }
 
-      if (!context.signal.aborted) {
-        const rerun = () => {
-          context.reset(changes)
-          context.changes = Array.from(changes.values())
-          changes.clear()
+        if (!context.signal.aborted) {
+          const rerun = () => {
+            context.reset(changes)
+            context.changes = Array.from(changes.values())
+            changes.clear()
 
-          promise = run(context)
-          promise.catch(noop)
+            promise = run(context)
+            promise.catch(noop)
+          }
+          promise.then(rerun, rerun)
+          context.abort()
         }
-        promise.then(rerun, rerun)
-        context.abort()
-      }
-    })
+      })
+    }
 
     return {
       then(onfulfilled, onrejected) {
