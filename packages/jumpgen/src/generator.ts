@@ -35,6 +35,12 @@ export interface Jumpgen<TEvent extends { type: string }, TResult>
    */
   waitForStart(timeout?: number): Promise<void>
   /**
+   * Abort the current generator run (if any) and start a new one. In watch
+   * mode, you shouldn't *need* to call this, but if your generator isn't
+   * able to watch everything it depends on, it could be necessary.
+   */
+  rerun(): Promise<TResult>
+  /**
    * Abort the current generator run and stop watching for changes (if in
    * watch mode). Afterward, the generator cannot be reused, so you have to
    * create a new instance.
@@ -50,12 +56,15 @@ export function jumpgen<
   generatorName: string,
   generator: (context: Context<TStore, TEvent>) => TReturn
 ) {
+  let running = false
+
   async function run(
     context: JumpgenContext<TStore, TEvent>
   ): Promise<Awaited<TReturn>> {
     // Give the caller a chance to attach event listeners.
     await Promise.resolve()
 
+    running = true
     context.events.emit('start', generatorName)
     try {
       let result: any = generator(context)
@@ -70,6 +79,8 @@ export function jumpgen<
       }
       context.events.emit('error', error, generatorName)
       throw error
+    } finally {
+      running = false
     }
   }
 
@@ -87,9 +98,19 @@ export function jumpgen<
     let promise = run(context)
     promise.catch(noop)
 
-    if (context.isWatchMode) {
-      const changes: FileChangeLog = new Map()
+    const changes: FileChangeLog = new Map()
+    const rerun = () => {
+      context.reset(changes)
+      context.changes = Array.from(changes.values())
+      changes.clear()
 
+      promise = run(context)
+      promise.catch(noop)
+
+      return promise
+    }
+
+    if (context.isWatchMode) {
       context.events.on('watch', (event, file) => {
         if (event === 'change' && !context.watchedFiles.has(file)) {
           // This file was only scanned, not read into memory, so changes
@@ -130,14 +151,6 @@ export function jumpgen<
         }
 
         if (!context.signal.aborted) {
-          const rerun = () => {
-            context.reset(changes)
-            context.changes = Array.from(changes.values())
-            changes.clear()
-
-            promise = run(context)
-            promise.catch(noop)
-          }
           promise.then(rerun, rerun)
           context.abort()
         }
@@ -162,6 +175,20 @@ export function jumpgen<
           ])
         }
         return startEvent.promise
+      },
+      rerun() {
+        if (!running) {
+          return rerun()
+        }
+        // If already aborted by a rerun call or a file change, wait for
+        // the generator to start before accessing the current promise.
+        if (context.signal.aborted) {
+          return startEvent.promise.then(() => promise)
+        }
+        // Otherwise, abort the current run and start a new one after the
+        // current promise is resolved.
+        context.abort()
+        return promise.then(rerun, rerun)
       },
       destroy: context.destroy,
     }

@@ -37,6 +37,9 @@ export function compose<TEvent extends { type: string }, TReturn>(
         }
         return Promise.race(promises)
       },
+      rerun() {
+        return Promise.all(runners.map(runner => runner.rerun()))
+      },
       async destroy() {
         await Promise.all(runners.map(runner => runner.destroy()))
       },
