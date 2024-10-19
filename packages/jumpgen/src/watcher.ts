@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray } from 'radashi'
-import { ChokidarEvent, JumpgenEventEmitter } from '../events'
+import { ChokidarEvent, JumpgenEventEmitter } from './events'
 
 export type Matcher = {
   base: string

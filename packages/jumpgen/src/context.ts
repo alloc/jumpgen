@@ -14,7 +14,7 @@ import {
 import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
 import { stripTrailingSlash } from './util/path'
-import { createJumpgenWatcher } from './util/watcher'
+import { createJumpgenWatcher } from './watcher'
 
 /**
  * A map of file paths to their corresponding change events.
