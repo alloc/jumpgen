@@ -100,7 +100,12 @@ export function createJumpgenWatcher(
     events.emit('watch', event, file, generatorName)
   }
 
+  const handleError = (error: Error) => {
+    events.emit('error', error, generatorName)
+  }
+
   watcher.on('all', handleChange)
+  watcher.on('error', handleError)
 
   function add(
     patterns: string | readonly string[],
@@ -201,6 +206,7 @@ export function createJumpgenWatcher(
 
   async function close() {
     watcher.off('all', handleChange)
+    watcher.off('error', handleError)
 
     await Promise.all([watcher.close(), existenceWatcher?.close()])
   }
@@ -222,7 +228,10 @@ export function createJumpgenWatcher(
      * directly, or you risk instantiating it when it's not needed.
      */
     get exists() {
-      return (existenceWatcher ??= createExistenceWatcher(watchedFiles))
+      return (existenceWatcher ??= createExistenceWatcher(
+        watchedFiles,
+        handleError
+      ))
     },
 
     isFileCritical(file: string): boolean {
@@ -240,7 +249,10 @@ type ExistenceWatcher = ReturnType<typeof createExistenceWatcher>
 
 // This watcher only cares about add/unlink events. It's only used when
 // the `exists` method is called, so we initialize it lazily.
-function createExistenceWatcher(watchedFiles: ReadonlySet<string>) {
+function createExistenceWatcher(
+  watchedFiles: ReadonlySet<string>,
+  handleError: (error: Error) => void
+) {
   const watcher = chokidar.watch([], {
     depth: 0,
     ignoreInitial: true,
@@ -302,6 +314,7 @@ function createExistenceWatcher(watchedFiles: ReadonlySet<string>) {
   }
 
   watcher.on('all', handleChange)
+  watcher.on('error', handleError)
 
   const watch = (file: string, existencePaths: Set<string>) => {
     existencePaths.add(file)
@@ -326,6 +339,8 @@ function createExistenceWatcher(watchedFiles: ReadonlySet<string>) {
     },
     async close() {
       watcher.off('all', handleChange)
+      watcher.off('error', handleError)
+
       await watcher.close()
     },
   }
