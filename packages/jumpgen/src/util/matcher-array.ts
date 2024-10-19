@@ -91,7 +91,6 @@ export class MatcherArray {
     file: string,
     options?: { cause?: string | string[]; critical?: boolean }
   ): void {
-    this.watcher?.add(file)
     this.#files.add(file)
 
     if (options?.critical) {
@@ -108,6 +107,10 @@ export class MatcherArray {
         blamedFiles.add(cause)
       }
     }
+
+    // Once our internal state is ready, ask chokidar to watch the file,
+    // which leads to a call to `this.match`.
+    this.watcher?.add(file)
   }
 
   forgetFile(file: string): void {
