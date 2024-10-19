@@ -39,7 +39,7 @@ export class MatcherArray {
 
   add(
     patterns: string | readonly string[],
-    options?: picomatch.PicomatchOptions
+    options: picomatch.PicomatchOptions & { cwd: string }
   ): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
@@ -70,13 +70,20 @@ export class MatcherArray {
         index = this.#matchers.length
       }
 
-      this.watcher?.add(base)
+      const rootDir = options.cwd + path.sep
+      const match = picomatch(pattern, options)
+
       this.#matchers.splice(index, 0, {
         base,
         glob,
         depth,
-        match: picomatch(pattern, options),
+        match: file =>
+          file.startsWith(rootDir) && match(file.slice(rootDir.length)),
       })
+
+      // Once our internal state is ready, ask chokidar to watch the
+      // directory, which leads to a call to `this.match`.
+      this.watcher?.add(path.join(options.cwd, base))
     }
   }
 

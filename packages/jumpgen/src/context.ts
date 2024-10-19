@@ -15,6 +15,7 @@ import {
 import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
 import { MatcherArray } from './util/matcher-array'
+import { stripTrailingSlash } from './util/path'
 
 /**
  * A map of file paths to their corresponding change events.
@@ -106,13 +107,19 @@ export function createJumpgenContext<
    */
   function scan(
     source: string | readonly string[],
-    options: GlobOptions = {}
+    options?: GlobOptions
   ): string[] {
-    options.cwd = path.resolve(root, options.cwd ?? '.')
-    if (options.watch !== false) {
-      matcher.add(source, options)
+    const cwd = options?.cwd
+      ? stripTrailingSlash(path.resolve(root, options.cwd))
+      : root
+
+    const globOptions = { ...options, cwd }
+
+    if (globOptions.watch !== false) {
+      matcher.add(source, globOptions)
     }
-    return globSync(source as string | string[], options)
+
+    return globSync(source as string | string[], globOptions)
   }
 
   /**
