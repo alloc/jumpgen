@@ -1,4 +1,5 @@
 import { FSWatcher } from 'chokidar'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray } from 'radashi'
@@ -14,6 +15,8 @@ export class MatcherArray {
   #files = new Set<string>()
   #blamedFiles = new Map<string, Set<string>>()
   #criticalFiles = new Set<string>()
+  #missingPaths = new Set<string>()
+  #fallbackPaths = new Map<string, number>()
   #matchers: Matcher[] = []
 
   /**
@@ -87,7 +90,9 @@ export class MatcherArray {
 
       // Once our internal state is ready, ask chokidar to watch the
       // directory, which leads to a call to `this.match`.
-      this.watcher?.add(base)
+      if (this.watcher) {
+        this.#watch(base)
+      }
     }
   }
 
@@ -114,7 +119,52 @@ export class MatcherArray {
 
     // Once our internal state is ready, ask chokidar to watch the file,
     // which leads to a call to `this.match`.
-    this.watcher?.add(file)
+    if (this.watcher) {
+      this.#watch(file)
+    }
+  }
+
+  /**
+   * Call this whenever the watcher reports an added file. This method will
+   * update any internal state that exists to support handling of missing
+   * paths.
+   */
+  checkAddedPath(file: string): void {
+    if (this.#missingPaths.delete(file)) {
+      const parent = path.dirname(file)
+      const childCount = this.#fallbackPaths.get(parent) ?? 0
+      if (childCount > 0) {
+        if (childCount === 1) {
+          this.#fallbackPaths.delete(parent)
+        } else {
+          this.#fallbackPaths.set(parent, childCount - 1)
+        }
+      }
+    }
+  }
+
+  /**
+   * Due to unfortunate Chokidar behavior, we need to ensure parent
+   * directories of missing files are matchable. If that ever gets fixed,
+   * we can remove this method and the `checkAddedPath` method, then revert
+   * back to simply calling `watcher?.add(file)`.
+   *
+   * @see https://github.com/paulmillr/chokidar/issues/1374
+   */
+  #watch(file: string, originalFile?: string): void {
+    if (!existsSync(file)) {
+      this.#missingPaths.add(file)
+
+      const fallbackPath = path.dirname(file)
+      if (fallbackPath !== file) {
+        const childCount = this.#fallbackPaths.get(fallbackPath) ?? 0
+        this.#fallbackPaths.set(fallbackPath, childCount + 1)
+        this.#watch(fallbackPath, originalFile ?? file)
+      }
+    }
+    if (!originalFile) {
+      this.watcher!.add(file)
+    }
   }
 
   forgetFile(file: string): void {
@@ -135,6 +185,9 @@ export class MatcherArray {
 
   match(file: string): boolean {
     if (this.#files.has(file)) {
+      return true
+    }
+    if (this.#fallbackPaths.has(file)) {
       return true
     }
     for (const matcher of this.#matchers) {
@@ -160,6 +213,8 @@ export class MatcherArray {
     this.#files.clear()
     this.#blamedFiles.clear()
     this.#criticalFiles.clear()
+    this.#missingPaths.clear()
+    this.#fallbackPaths.clear()
     this.#matchers.length = 0
   }
 }

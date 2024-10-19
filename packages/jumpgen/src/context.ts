@@ -52,6 +52,11 @@ export function createJumpgenContext<
       })
     : undefined
 
+  if (watcher) {
+    const checkAddedPath = matcher.checkAddedPath.bind(matcher)
+    watcher.on('add', checkAddedPath).on('addDir', checkAddedPath)
+  }
+
   // Certain methods require only watching a path for its existence or for specific events.
   let existenceWatcher: ExistenceWatcher | undefined
 
