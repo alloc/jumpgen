@@ -88,12 +88,15 @@ export function createJumpgenContext<
     }
 
     if (isHardReset && isArray(options.watch)) {
-      options.watch.forEach(p => {
-        p = path.resolve(root, p)
-        if (isExistingFile(p)) {
-          matcher.addFile(p)
+      options.watch.forEach(input => {
+        const resolvedInput = path.resolve(root, input)
+        const stat = fs.statSync(resolvedInput, { throwIfNoEntry: false })
+        if (stat?.isFile()) {
+          matcher.addFile(resolvedInput)
+        } else if (stat?.isDirectory()) {
+          matcher.add(path.join(input, '**/*'), { cwd: root })
         } else {
-          matcher.add(p)
+          matcher.add(input, { cwd: root })
         }
       })
     }
@@ -408,14 +411,6 @@ export function createJumpgenContext<
   }
 
   return context
-}
-
-function isExistingFile(path: string): boolean {
-  try {
-    return fs.statSync(path).isFile()
-  } catch {
-    return false
-  }
 }
 
 function some<T>(
