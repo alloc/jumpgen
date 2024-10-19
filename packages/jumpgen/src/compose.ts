@@ -9,9 +9,11 @@ import { JumpgenOptions } from './options'
  * in parallel.
  */
 export function compose<TEvent extends { type: string }, TReturn>(
-  ...generators: ((options?: JumpgenOptions<TEvent>) => Jumpgen<TReturn>)[]
+  ...generators: ((
+    options?: JumpgenOptions<TEvent>
+  ) => Jumpgen<TEvent, TReturn>)[]
 ) {
-  return (options?: JumpgenOptions<TEvent>): Jumpgen<TReturn[]> => {
+  return (options?: JumpgenOptions<TEvent>): Jumpgen<TEvent, TReturn[]> => {
     const events: JumpgenEventEmitter<TEvent> = new EventEmitter()
     const runners = generators.map(generator => generator(options))
     return {

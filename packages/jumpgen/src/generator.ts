@@ -17,8 +17,9 @@ export interface Context<
     'abort' | 'destroy' | 'events' | 'reset'
   > {}
 
-export type Jumpgen<Result> = PromiseLike<Result> & {
-  events: JumpgenEventEmitter
+export interface Jumpgen<TEvent extends { type: string }, TResult>
+  extends PromiseLike<TResult> {
+  get events(): JumpgenEventEmitter<TEvent>
   get watchedFiles(): ReadonlySet<string>
   /**
    * If you just updated some files programmatically, you can await a call
@@ -72,7 +73,9 @@ export function jumpgen<
     }
   }
 
-  return (options?: JumpgenOptions<TEvent>): Jumpgen<Awaited<TReturn>> => {
+  return (
+    options?: JumpgenOptions<TEvent>
+  ): Jumpgen<TEvent, Awaited<TReturn>> => {
     const context = createJumpgenContext<TStore, TEvent>(generatorName, options)
 
     let startEvent = Promise.withResolvers<void>()
