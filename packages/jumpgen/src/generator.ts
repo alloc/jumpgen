@@ -21,8 +21,15 @@ export type Jumpgen<Result> = PromiseLike<Result> & {
   get watchedFiles(): ReadonlySet<string>
   /**
    * If you just updated some files programmatically, you can await a call
-   * to this method to ensure that the generator has finished scanning the
-   * file system for changes.
+   * to this method to ensure that a new generator run has started before
+   * you await the generator itself.
+   *
+   * @example
+   * ```ts
+   * fs.writeFileSync('foo.json', JSON.stringify({ foo: 'bar' }))
+   * await generator.waitForStart()
+   * await generator
+   * ```
    */
   waitForStart(timeout?: number): Promise<void>
   /**
