@@ -289,6 +289,7 @@ export function createJumpgenContext<
   async function destroy() {
     ctrl.abort('destroy')
     await watcher?.close()
+    events.emit('destroy', generatorName)
   }
 
   const context = {

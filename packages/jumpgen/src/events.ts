@@ -9,6 +9,7 @@ export type JumpgenEvents<TEvent extends { type: string } = never> = {
   finish: [result: any, generatorName: string]
   error: [error: Error, generatorName: string]
   abort: [reason: any, generatorName: string]
+  destroy: [generatorName: string]
   custom: [event: TEvent, generatorName: string]
 }
 
