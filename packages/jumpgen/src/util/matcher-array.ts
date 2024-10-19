@@ -62,7 +62,9 @@ export class MatcherArray {
     }
 
     for (const pattern of positivePatterns) {
-      const { base, glob } = picomatch.scan(pattern)
+      let { base, glob } = picomatch.scan(pattern)
+
+      // Sort matchers by depth, so that deeper matchers are matched first.
       const depth = path.normalize(base).split(path.sep).length
 
       let index = this.#matchers.findIndex(m => depth > m.depth)
@@ -72,6 +74,8 @@ export class MatcherArray {
 
       const rootDir = options.cwd + path.sep
       const match = picomatch(pattern, options)
+
+      base = path.join(options.cwd, base)
 
       this.#matchers.splice(index, 0, {
         base,
@@ -83,7 +87,7 @@ export class MatcherArray {
 
       // Once our internal state is ready, ask chokidar to watch the
       // directory, which leads to a call to `this.match`.
-      this.watcher?.add(path.join(options.cwd, base))
+      this.watcher?.add(base)
     }
   }
 
@@ -135,6 +139,9 @@ export class MatcherArray {
     }
     for (const matcher of this.#matchers) {
       if (matcher.match(file)) {
+        return true
+      }
+      if (file === matcher.base) {
         return true
       }
     }
