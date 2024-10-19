@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import { JumpgenEventEmitter } from './events'
+import { stripTrailingSlash } from './util/path'
 
 export type JumpgenOptions = {
   /**
@@ -26,7 +27,9 @@ export type JumpgenOptions = {
 export function resolveOptions(options: JumpgenOptions) {
   return {
     ...options,
-    root: options.root ? path.resolve(options.root) : process.cwd(),
+    root: stripTrailingSlash(
+      options.root ? path.resolve(options.root) : process.cwd()
+    ),
     watch: options.watch ?? false,
     events: options.events ?? new EventEmitter(),
   }
