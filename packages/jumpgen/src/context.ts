@@ -131,10 +131,10 @@ export function createJumpgenContext<
    * changes.
    */
   function list(dir: string, options?: ListOptions): string[] {
-    dir = path.resolve(root, dir)
     if (options?.watch !== false) {
-      matcher.add(path.join(dir, '*'), { dot: true })
+      matcher.add(path.join(dir, '*'), { cwd: root, dot: true })
     }
+    dir = path.resolve(root, dir)
     const children = fs.readdirSync(dir)
     if (options?.absolute) {
       return children.map(child => path.resolve(dir, child))
