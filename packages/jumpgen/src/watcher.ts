@@ -5,7 +5,7 @@ import picomatch from 'picomatch'
 import { castArray } from 'radashi'
 import { ChokidarEvent, JumpgenEventEmitter } from './events'
 
-export type Matcher = {
+type Matcher = {
   base: string
   glob: string
   depth: number

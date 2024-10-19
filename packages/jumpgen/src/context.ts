@@ -65,10 +65,9 @@ export function createJumpgenContext<
           watcher = createJumpgenWatcher(generatorName, events)
         } else {
           isHardReset = false
-          for (let { file, event } of changes.values()) {
+          for (const { file, event } of changes.values()) {
             if (event !== 'add') {
-              file = path.resolve(root, file)
-              watcher.unwatch(file)
+              watcher.unwatch(path.resolve(root, file))
             }
           }
         }
