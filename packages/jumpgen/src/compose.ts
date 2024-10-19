@@ -15,7 +15,9 @@ export function compose<TEvent extends { type: string }, TReturn>(
 ) {
   return (options?: JumpgenOptions<TEvent>): Jumpgen<TEvent, TReturn[]> => {
     const events: JumpgenEventEmitter<TEvent> = new EventEmitter()
-    const runners = generators.map(generator => generator(options))
+    const runners = generators.map(generator =>
+      generator({ ...options, events })
+    )
     return {
       then(onfulfilled, onrejected) {
         return Promise.all(runners).then(onfulfilled, onrejected)
