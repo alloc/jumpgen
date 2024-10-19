@@ -152,7 +152,7 @@ export function jumpgen<
 
         if (!context.signal.aborted) {
           promise.then(rerun, rerun)
-          context.abort()
+          context.abort('watch')
         }
       })
     }
@@ -187,7 +187,7 @@ export function jumpgen<
         }
         // Otherwise, abort the current run and start a new one after the
         // current promise is resolved.
-        context.abort()
+        context.abort('rerun')
         return promise.then(rerun, rerun)
       },
       destroy: context.destroy,

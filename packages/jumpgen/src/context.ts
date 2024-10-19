@@ -281,12 +281,13 @@ export function createJumpgenContext<
     events.emit('custom', event, generatorName)
   }
 
-  function abort() {
-    ctrl.abort()
+  function abort(reason?: any) {
+    ctrl.abort(reason)
+    events.emit('abort', reason, generatorName)
   }
 
   async function destroy() {
-    ctrl.abort()
+    ctrl.abort('destroy')
     await watcher?.close()
   }
 
