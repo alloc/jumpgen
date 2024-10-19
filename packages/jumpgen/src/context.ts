@@ -123,7 +123,7 @@ export function createJumpgenContext<
 
     const globOptions = { ...options, cwd }
 
-    if (globOptions.watch !== false) {
+    if (watcher && globOptions.watch !== false) {
       matcher.add(source, globOptions)
     }
 
@@ -136,7 +136,7 @@ export function createJumpgenContext<
    * changes.
    */
   function list(dir: string, options?: ListOptions): string[] {
-    if (options?.watch !== false) {
+    if (watcher && options?.watch !== false) {
       matcher.add(path.join(dir, '*'), { cwd: root, dot: true })
     }
     dir = path.resolve(root, dir)
@@ -171,8 +171,9 @@ export function createJumpgenContext<
     options?: ReadOptions | BufferEncoding | null
   ): any {
     file = path.resolve(root, file)
-
-    matcher.addFile(file, isObject(options) ? options : undefined)
+    if (watcher) {
+      matcher.addFile(file, isObject(options) ? options : undefined)
+    }
     return fs.readFileSync(file, options)
   }
 
@@ -208,15 +209,17 @@ export function createJumpgenContext<
 
   function stat(file: string): fs.Stats | undefined {
     file = path.resolve(root, file)
-
-    matcher.addFile(file)
+    if (watcher) {
+      matcher.addFile(file)
+    }
     return fs.statSync(file, { throwIfNoEntry: false })
   }
 
   function lstat(file: string): fs.Stats | undefined {
     file = path.resolve(root, file)
-
-    matcher.addFile(file)
+    if (watcher) {
+      matcher.addFile(file)
+    }
     return fs.lstatSync(file, { throwIfNoEntry: false })
   }
 
