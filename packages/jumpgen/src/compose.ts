@@ -8,11 +8,11 @@ import { JumpgenOptions } from './options'
  * Combines multiple generators into a single generator that runs them all
  * in parallel.
  */
-export function compose<Result>(
-  ...generators: ((options?: JumpgenOptions) => Jumpgen<Result>)[]
+export function compose<TEvent extends { type: string }, TReturn>(
+  ...generators: ((options?: JumpgenOptions<TEvent>) => Jumpgen<TReturn>)[]
 ) {
-  return (options?: JumpgenOptions): Jumpgen<Result[]> => {
-    const events: JumpgenEventEmitter = new EventEmitter()
+  return (options?: JumpgenOptions<TEvent>): Jumpgen<TReturn[]> => {
+    const events: JumpgenEventEmitter<TEvent> = new EventEmitter()
     const runners = generators.map(generator => generator(options))
     return {
       then(onfulfilled, onrejected) {

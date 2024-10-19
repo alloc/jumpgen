@@ -3,7 +3,7 @@ import path from 'node:path'
 import { JumpgenEventEmitter } from './events'
 import { stripTrailingSlash } from './util/path'
 
-export type JumpgenOptions = {
+export type JumpgenOptions<TEvent extends { type: string } = never> = {
   /**
    * The directory from which all file operations are relative.
    *
@@ -21,10 +21,12 @@ export type JumpgenOptions = {
    * Override the default event emitter. Useful for consolidating events
    * across multiple generators.
    */
-  events?: JumpgenEventEmitter
+  events?: JumpgenEventEmitter<TEvent>
 }
 
-export function resolveOptions(options: JumpgenOptions) {
+export function resolveOptions<TEvent extends { type: string }>(
+  options: JumpgenOptions<TEvent>
+) {
   return {
     ...options,
     root: stripTrailingSlash(

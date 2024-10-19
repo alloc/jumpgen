@@ -9,9 +9,13 @@ export type { FileChange, JumpgenFS } from './context'
 export { File } from './file'
 export type { JumpgenEventEmitter, JumpgenOptions }
 
-export type Context<
-  TStore extends Record<string, any> = Record<string, never>
-> = Omit<JumpgenContext<TStore>, 'abort' | 'destroy' | 'events' | 'reset'>
+export interface Context<
+  TStore extends Record<string, any> = Record<string, never>,
+  TEvent extends { type: string } = never
+> extends Omit<
+    JumpgenContext<TStore, TEvent>,
+    'abort' | 'destroy' | 'events' | 'reset'
+  > {}
 
 export type Jumpgen<Result> = PromiseLike<Result> & {
   events: JumpgenEventEmitter
@@ -39,10 +43,14 @@ export type Jumpgen<Result> = PromiseLike<Result> & {
 
 export function jumpgen<
   TStore extends Record<string, any> = Record<string, never>,
+  TEvent extends { type: string } = never,
   TReturn = void
->(generatorName: string, generator: (context: Context<TStore>) => TReturn) {
+>(
+  generatorName: string,
+  generator: (context: Context<TStore, TEvent>) => TReturn
+) {
   async function run(
-    context: JumpgenContext<TStore>
+    context: JumpgenContext<TStore, TEvent>
   ): Promise<Awaited<TReturn>> {
     // Give the caller a chance to attach event listeners.
     await Promise.resolve()
@@ -64,9 +72,8 @@ export function jumpgen<
     }
   }
 
-  return (options?: JumpgenOptions): Jumpgen<Awaited<TReturn>> => {
-    const context = createJumpgenContext<TStore>(generatorName, options)
-    const changes: FileChangeLog = new Map()
+  return (options?: JumpgenOptions<TEvent>): Jumpgen<Awaited<TReturn>> => {
+    const context = createJumpgenContext<TStore, TEvent>(generatorName, options)
 
     let startEvent = Promise.withResolvers<void>()
     context.events.on('start', () => {
@@ -78,6 +85,8 @@ export function jumpgen<
     promise.catch(noop)
 
     if (context.isWatchMode) {
+      const changes: FileChangeLog = new Map()
+
       context.events.on('watch', (event, file) => {
         if (event === 'change' && !context.watchedFiles.has(file)) {
           // This file was only scanned, not read into memory, so changes

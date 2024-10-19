@@ -27,14 +27,16 @@ export type FileChange = {
 }
 
 export type JumpgenContext<
-  TStore extends Record<string, any> = Record<string, never>
-> = ReturnType<typeof createJumpgenContext<TStore>>
+  TStore extends Record<string, any> = Record<string, never>,
+  TEvent extends { type: string } = never
+> = ReturnType<typeof createJumpgenContext<TStore, TEvent>>
 
 export type JumpgenFS = JumpgenContext['fs']
 
 export function createJumpgenContext<
-  TStore extends Record<string, any> = Record<string, never>
->(generatorName: string, rawOptions: JumpgenOptions = {}) {
+  TStore extends Record<string, any> = Record<string, never>,
+  TEvent extends { type: string } = never
+>(generatorName: string, rawOptions: JumpgenOptions<TEvent> = {}) {
   const options = resolveOptions(rawOptions)
   const { root, events } = options
 
@@ -272,6 +274,13 @@ export function createJumpgenContext<
     }
   }
 
+  /**
+   * Emit a custom event.
+   */
+  function emit(event: TEvent) {
+    events.emit('custom', event, generatorName)
+  }
+
   function abort() {
     ctrl.abort()
   }
@@ -324,12 +333,11 @@ export function createJumpgenContext<
      * Events related to the generator.
      *
      * - "start" when a generator run begins
+     * - "watch" when something happens to a watched path
      * - "write" when a file is written
-     * - "watch" when the file watcher sees something happen to a watched path
      * - "finish" when a generator run completes
      * - "error" when an error occurs
-     *
-     * The generator may have its own custom events, too.
+     * - "custom" when the generator emits a custom event
      */
     events,
     /**
@@ -386,6 +394,7 @@ export function createJumpgenContext<
       write,
       watch,
     },
+    emit,
     abort,
     destroy,
     reset,
