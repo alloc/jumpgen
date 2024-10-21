@@ -1,6 +1,20 @@
 # Testing
 
-The easiest way to test a jumpgen generator is with “module mocking”, a feature supported by many test frameworks, like Vitest.
+The most straight-forward way to test a jumpgen generator is with test fixtures and a test runner like [Vitest](https://vitest.dev/).
+
+1. For each test, create a test fixture in the `test/__fixtures__` directory. This is usually a folder containing the necessary files and directories to run the generator. Sometimes, you might generate certain files in the fixture at test setup time if they are common dependencies of the generator (i.e. a `package.json` file or `tsconfig.json` file).
+
+2. In your test file, use a glob library like [tinyglobby](https://github.com/SuperchupuDev/tinyglobby) to find the test fixtures in the `__fixtures__` directory. In a `for` loop, declare a test for each fixture. Generally, this means calling your generator's factory function with the fixture as the `root` directory.
+
+3. It's recommended to “gitignore” any output files created by the generator. You may also want to clean up after each test, to avoid leaving test artifacts in your fixture.
+
+If you have any questions, please [open an issue](https://github.com/alloc/jumpgen/issues/new).
+
+&nbsp;
+
+## Module mocking
+
+Another way to test a jumpgen generator is with “module mocking”, a feature supported by many test frameworks, like Vitest.
 
 With module mocking, you can substitute usage of `node:fs` with an in-memory implementation, allowing you to control the behavior of the file system for each test.
 
