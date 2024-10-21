@@ -1,6 +1,6 @@
 # jumpgen
 
-![](https://img.shields.io/npm/l/jumpgen)
+![](https://img.shields.io/npm/v/jumpgen) ![](https://img.shields.io/npm/l/jumpgen)
 
 > Easy, transparent ”watch mode” for filesystem access (powered by Chokidar)
 
