@@ -83,6 +83,11 @@ export function createJumpgenContext<
 
       if (isHardReset && isArray(options.watch)) {
         for (const input of options.watch) {
+          if (input[0] === '!') {
+            throw new Error(
+              'The `watch` option does not support negative globs.'
+            )
+          }
           const resolvedInput = path.resolve(root, input)
           const stat = fs.statSync(resolvedInput, { throwIfNoEntry: false })
           if (stat?.isFile()) {
