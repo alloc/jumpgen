@@ -1,9 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import picomatch from 'picomatch'
 import { castArray, isArray, isObject, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
 import { File } from './file'
 import {
+  GlobOptions,
   JumpgenOptions,
   ListOptions,
   ReadOptions,
@@ -122,17 +124,55 @@ export function createJumpgenContext<
    * List the children of a directory. The directory is allowed to be a
    * relative path. In watch mode, the directory will be watched for
    * changes.
+   *
+   * You may want to filter the list of files using the `glob` option, if
+   * you're only interested in a subset of the directory's contents.
    */
   function list(dir: string, options?: ListOptions): string[] {
-    if (options?.watch !== false) {
-      watcher?.add(path.join(dir, '*'), { cwd: root, dot: true })
-    }
     dir = path.resolve(root, dir)
-    const children = fs.readdirSync(dir)
+
+    let children = fs.readdirSync(dir)
+    if (options?.watch !== false) {
+      watchReaddir(dir, options)
+    }
+
+    if (options?.glob) {
+      children = children.filter(
+        picomatch(options.glob, {
+          dot: true,
+          ...options.globOptions,
+          noglobstar: true,
+        })
+      )
+    }
+
     if (options?.absolute) {
-      return children.map(child => path.resolve(dir, child))
+      return children.map(child => path.join(dir, child))
     }
     return children
+  }
+
+  function watchReaddir(
+    dir: string,
+    options?: {
+      glob?: string | string[]
+      globOptions?: Omit<GlobOptions, 'cwd' | 'noglobstar'>
+    }
+  ): void {
+    let glob = castArray(options?.glob ?? '*')
+    let cwd: string
+    if (path.isAbsolute(dir)) {
+      cwd = dir
+    } else {
+      glob = glob.map(pattern => joinWithGlob(dir, pattern))
+      cwd = root
+    }
+    watcher?.add(glob, {
+      dot: true,
+      ...options?.globOptions,
+      cwd,
+      noglobstar: true,
+    })
   }
 
   /**
@@ -426,4 +466,13 @@ function some<T>(
     }
   }
   return false
+}
+
+function joinWithGlob(dir: string, glob: string) {
+  let prefix = ''
+  if (glob[0] === '!') {
+    prefix = '!'
+    glob = glob.slice(1)
+  }
+  return prefix + path.join(dir, glob)
 }

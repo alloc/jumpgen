@@ -37,6 +37,8 @@ export function resolveOptions<TEvent extends { type: string }>(
   }
 }
 
+export type GlobOptions = import('picomatch').PicomatchOptions
+
 export type ScanOptions = import('tinyglobby').GlobOptions & {
   /**
    * If set to `false`, the globs won't be watched when jumpgen runs in
@@ -54,6 +56,18 @@ export type ListOptions = {
    * @default false
    */
   absolute?: boolean
+  /**
+   * A glob pattern to filter the list of files.
+   *
+   * Globstars (`**`) and separators (`/`) are not allowed.
+   */
+  glob?: string | string[]
+  /**
+   * Options to pass to picomatch.
+   *
+   * Dotfiles are enabled by default.
+   */
+  globOptions?: Omit<GlobOptions, 'cwd' | 'noglobstar'>
   /**
    * If set to `false`, the directory won't be watched when jumpgen runs in
    * watch mode.
