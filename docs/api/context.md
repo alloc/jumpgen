@@ -158,7 +158,7 @@ Watch one or more paths like `fs.read` does, but without loading them into memor
 
 The `options` argument may be an object that may include:
 
-- `cause`: One or more files to blame for this call. Also known as associative watching, this is useful when third party code is accessing files in a way you can't control. Learn more in the [File Blaming](../advanced.md#file-blaming) section.
+- `cause`: One or more files to blame for this call. Also known as associative watching, this is useful when third party code is accessing files in a way you can't control. Learn more in the [Blamed Files](../advanced.md#blamed-files) section.
 
 ### `fs.write(path, content)`
 
