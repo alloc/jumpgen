@@ -10,7 +10,7 @@ With it, you can easily do the following:
 - Abort an asynchronous generator when a file changes
 - Only write files if they have changed
 
-It uses the [`chokidar@4`](https://github.com/paulmillr/chokidar), [`picomatch`](https://github.com/micromatch/picomatch), and [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby) npm packages under the hood for file watching and globbing.
+It uses the [`chokidar@4`](https://github.com/paulmillr/chokidar), [`picomatch`](https://github.com/micromatch/picomatch), [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby), and [`fdir`](https://github.com/thecodrr/fdir) npm packages under the hood for file watching and globbing.
 
 #### API Reference
 
