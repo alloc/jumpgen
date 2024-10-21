@@ -166,7 +166,7 @@ export function createJumpgenWatcher(
 
     const cwd =
       (options?.cwd
-        ? path.resolve(root, stripTrailingSlash(options.cwd))
+        ? stripTrailingSlash(path.resolve(root, options.cwd))
         : root) + path.sep
 
     for (const pattern of positivePatterns) {
