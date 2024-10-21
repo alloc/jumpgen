@@ -39,6 +39,13 @@ export function resolveOptions<TEvent extends { type: string }>(
 
 export type GlobOptions = import('picomatch').PicomatchOptions
 
+export type FindUpOptions = Omit<GlobOptions, 'noglobstar'> & {
+  /**
+   * Stop searching when this condition is met.
+   */
+  stop?: string | string[] | ((dir: string) => boolean)
+}
+
 export type ScanOptions = import('tinyglobby').GlobOptions & {
   /**
    * If set to `false`, the globs won't be watched when jumpgen runs in

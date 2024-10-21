@@ -1,10 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
-import { castArray, isArray, isObject, isString } from 'radashi'
+import { castArray, isArray, isFunction, isObject, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
 import { File } from './file'
 import {
+  FindUpOptions,
   GlobOptions,
   JumpgenOptions,
   ListOptions,
@@ -118,6 +119,73 @@ export function createJumpgenContext<
     }
 
     return globSync(source as string | string[], globOptions)
+  }
+
+  /**
+   * Find a file by searching up the directory tree. You may provide a glob
+   * pattern to match against the file names. The returned path is relative
+   * to the generator's root directory.
+   *
+   * By default, the search stops at the root directory, but the `stop`
+   * option lets you control this behavior with a glob or function (i.e.
+   * stop when a `.git` directory is found).
+   *
+   * Globstars (`**`) and separators (`/`) are not allowed in the source
+   * glob(s).
+   */
+  function findUp(
+    source: string | string[],
+    options?: FindUpOptions
+  ): string | null {
+    const watchOptions = {
+      glob: source,
+      globOptions: options,
+    }
+
+    let children: string[]
+    let stop: (dir: string) => boolean
+
+    if (options?.stop) {
+      if (isFunction(options.stop)) {
+        stop = options.stop
+      } else if (isString(options.stop) && path.isAbsolute(options.stop)) {
+        // Stop at a specific parent directory.
+        stop = dir => dir === options.stop
+      } else {
+        // Stop when a matching path is found.
+        const match = picomatch(options.stop, { noglobstar: true })
+        stop = () => children.some(match)
+
+        // Ensure the stop globs are also watched.
+        watchOptions.glob = [source, options.stop].flat()
+      }
+    } else {
+      // Stop at the root directory. (default behavior)
+      stop = dir => dir === root
+    }
+
+    const match = picomatch(source, {
+      ...options,
+      noglobstar: true,
+    })
+
+    let dir = options?.cwd ? path.resolve(root, options.cwd) : root
+
+    while (true) {
+      children = fs.readdirSync(dir)
+      watchReaddir(dir, watchOptions)
+
+      for (const name of children) {
+        if (match(name)) {
+          return path.relative(root, path.join(dir, name))
+        }
+      }
+
+      if (stop(dir)) {
+        return null
+      }
+      dir = path.dirname(dir)
+    }
   }
 
   /**
@@ -435,6 +503,7 @@ export function createJumpgenContext<
      */
     fs: {
       scan,
+      findUp,
       list,
       read,
       tryRead,
