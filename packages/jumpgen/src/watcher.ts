@@ -1,9 +1,10 @@
-import chokidar, { EmitArgs } from 'chokidar'
+import chokidar, { FSWatcher } from 'chokidar'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray } from 'radashi'
 import { ChokidarEvent, JumpgenEventEmitter } from './events'
+import { GlobOptions } from './options'
 
 type Matcher = {
   base: string
@@ -28,7 +29,12 @@ export function createJumpgenWatcher(
   // For existence checks, we need a separate watcher.
   let existenceWatcher: ExistenceWatcher | undefined
 
-  const watcher = chokidar.watch([], {
+  // For watching only the immediate children of a directory, we need a
+  // separate watcher.
+  let childrenWatcher: FSWatcher | undefined
+
+  // Recursive file watching.
+  const recursiveWatcher = chokidar.watch([], {
     ignored(file) {
       if (watchedFiles.has(file)) {
         return false
@@ -49,30 +55,6 @@ export function createJumpgenWatcher(
     ignoreInitial: true,
     ignorePermissionErrors: true,
   })
-
-  /**
-   * Due to unfortunate Chokidar behavior, we need to ensure parent
-   * directories of missing files are matchable. If that ever gets fixed,
-   * we can remove this method and the `checkAddedPath` method, then revert
-   * back to simply calling `watcher?.add(file)`.
-   *
-   * @see https://github.com/paulmillr/chokidar/issues/1374
-   */
-  const watch = (file: string, originalFile?: string): void => {
-    if (!existsSync(file)) {
-      missingPaths.add(file)
-
-      const fallbackPath = path.dirname(file)
-      if (fallbackPath !== file) {
-        const childCount = fallbackPaths.get(fallbackPath) ?? 0
-        fallbackPaths.set(fallbackPath, childCount + 1)
-        watch(fallbackPath, originalFile ?? file)
-      }
-    }
-    if (!originalFile) {
-      watcher.add(file)
-    }
-  }
 
   /**
    * Call this whenever the watcher reports an added file. This method will
@@ -104,12 +86,61 @@ export function createJumpgenWatcher(
     events.emit('error', error, generatorName)
   }
 
-  watcher.on('all', handleChange)
-  watcher.on('error', handleError)
+  recursiveWatcher.on('all', handleChange)
+  recursiveWatcher.on('error', handleError)
+
+  /**
+   * Due to unfortunate Chokidar behavior, we need to ensure parent
+   * directories of missing files are matchable. If that ever gets fixed,
+   * we can remove this method and the `checkAddedPath` method, then revert
+   * back to simply calling `watcher?.add(file)`.
+   *
+   * @see https://github.com/paulmillr/chokidar/issues/1374
+   */
+  const watch = (
+    file: string,
+    childrenOnly?: boolean,
+    originalFile?: string
+  ): void => {
+    if (!existsSync(file)) {
+      missingPaths.add(file)
+
+      const fallbackPath = path.dirname(file)
+      if (fallbackPath !== file) {
+        const childCount = fallbackPaths.get(fallbackPath) ?? 0
+        fallbackPaths.set(fallbackPath, childCount + 1)
+        watch(fallbackPath, childrenOnly, originalFile ?? file)
+      }
+    }
+
+    if (originalFile) {
+      return // Chokidar watches fallback paths automatically.
+    }
+
+    if (childrenOnly) {
+      if (!childrenWatcher) {
+        childrenWatcher = chokidar.watch([], {
+          depth: 1,
+          ignoreInitial: true,
+          ignorePermissionErrors: true,
+        })
+        childrenWatcher.on('all', (event, file) => {
+          if (event !== 'change') {
+            handleChange(event, file)
+          }
+        })
+        childrenWatcher.on('error', handleError)
+      }
+
+      childrenWatcher.add(file)
+    } else {
+      recursiveWatcher.add(file)
+    }
+  }
 
   function add(
     patterns: string | readonly string[],
-    options: picomatch.PicomatchOptions & { cwd: string }
+    options: GlobOptions & { cwd: string }
   ): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
@@ -157,7 +188,7 @@ export function createJumpgenWatcher(
 
       // Once our internal state is ready, ask chokidar to watch the
       // directory, which leads to a call to `this.match`.
-      watch(base)
+      watch(base, options?.noglobstar)
     }
   }
 
@@ -188,7 +219,7 @@ export function createJumpgenWatcher(
   }
 
   function unwatch(file: string): void {
-    watcher.unwatch(file)
+    recursiveWatcher.unwatch(file)
     existenceWatcher?.unwatch(file)
 
     watchedFiles.delete(file)
@@ -205,10 +236,13 @@ export function createJumpgenWatcher(
   }
 
   async function close() {
-    watcher.off('all', handleChange)
-    watcher.off('error', handleError)
-
-    await Promise.all([watcher.close(), existenceWatcher?.close()])
+    recursiveWatcher.removeAllListeners()
+    childrenWatcher?.removeAllListeners()
+    await Promise.all([
+      recursiveWatcher.close(),
+      childrenWatcher?.close(),
+      existenceWatcher?.close(),
+    ])
   }
 
   return {
@@ -230,6 +264,7 @@ export function createJumpgenWatcher(
     get exists() {
       return (existenceWatcher ??= createExistenceWatcher(
         watchedFiles,
+        handleChange,
         handleError
       ))
     },
@@ -251,6 +286,7 @@ type ExistenceWatcher = ReturnType<typeof createExistenceWatcher>
 // the `exists` method is called, so we initialize it lazily.
 function createExistenceWatcher(
   watchedFiles: ReadonlySet<string>,
+  handleChange: (event: ChokidarEvent, file: string) => void,
   handleError: (error: Error) => void
 ) {
   const watcher = chokidar.watch([], {
@@ -270,18 +306,10 @@ function createExistenceWatcher(
    * types, depending on whether the path was checked for a particular file
    * type or not.
    */
-  const isRelevantChange = (args: EmitArgs): boolean => {
-    const [event] = args
-
-    if (event === 'error') {
-      return true
-    }
-
+  const isRelevantChange = (event: ChokidarEvent, file: string): boolean => {
     if (event === 'change') {
       return false
     }
-
-    const [, file] = args as [string, string]
 
     // If a file is both checked for existence and accessed, bail out to
     // avoid sending duplicate events.
@@ -306,14 +334,12 @@ function createExistenceWatcher(
     return !fileExistencePaths?.has(file)
   }
 
-  const handleChange = (...args: EmitArgs) => {
-    if (isRelevantChange(args)) {
-      // Forward existence events to the main watcher.
-      watcher.emitWithAll(args[0], args as EmitArgs)
+  watcher.on('all', (event, file) => {
+    if (isRelevantChange(event, file)) {
+      handleChange(event, file)
     }
-  }
+  })
 
-  watcher.on('all', handleChange)
   watcher.on('error', handleError)
 
   const watch = (file: string, existencePaths: Set<string>) => {
@@ -338,9 +364,7 @@ function createExistenceWatcher(
       dirExistencePaths?.delete(file)
     },
     async close() {
-      watcher.off('all', handleChange)
-      watcher.off('error', handleError)
-
+      watcher.removeAllListeners()
       await watcher.close()
     },
   }
