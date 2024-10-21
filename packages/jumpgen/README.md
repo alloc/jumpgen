@@ -1,16 +1,19 @@
 # jumpgen
 
-**jumpgen** is a tiny framework for generating files.
+**The problem:** You're writing a script that uses the filesystem as one of its inputs. You want to watch files for changes, so you can rerun your script when they change.
 
-With it, you can easily do the following:
+**The solution:** Use `jumpgen`.
 
-- Automatically watch files that you read into memory, so changes to them will rerun your generator
-- Automatically watch globs and directories that you scan, so added and deleted files will rerun your generator
-- Use template literals without worrying about excess indentation
-- Abort an asynchronous generator when a file changes
-- Only write files if they have changed
+Now, your script can use filesystem APIs without worrying about how to watch files for changes, leaving you to focus on the logic of your generator.
 
-It uses the [`chokidar@4`](https://github.com/paulmillr/chokidar), [`picomatch`](https://github.com/micromatch/picomatch), [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby), and [`fdir`](https://github.com/thecodrr/fdir) npm packages under the hood for file watching and globbing.
+- Your script will rerun automatically when files it relies on get added, changed, or deleted.
+- Glob patterns are also watched for you.
+- Jumpgen determines if a path needs to be watched recursively, only its children, or just the path itself. This means your generator will only rerun when it needs to, reducing unnecessary work.
+- Incremental updates are easier than ever, thanks to Jumpgen's [`task`](https://github.com/alloc/jumpgen/issues/5) API. _(coming soon)_
+- If you have a long-running script, it can be automatically aborted if a file changes during its execution.
+- If your script relies on third-party code that accesses the filesystem, you can tell Jumpgen to watch those files too, optionally [blaming other files](./docs/advanced.md#blamed-files) when it detects a change.
+- If your script reads from a configuration file, you can tell Jumpgen to [“hard reset” the generator](./docs/advanced.md#critical-files) when that file changes. This is useful for far-reaching changes that might invalidate your entire script's output.
+- It uses the [`chokidar@4`](https://github.com/paulmillr/chokidar), [`picomatch`](https://github.com/micromatch/picomatch), [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby), and [`fdir`](https://github.com/thecodrr/fdir) npm packages under the hood for file watching and globbing.
 
 #### API Reference
 
