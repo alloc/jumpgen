@@ -37,7 +37,7 @@ export function resolveOptions<TEvent extends { type: string }>(
   }
 }
 
-export type GlobOptions = import('tinyglobby').GlobOptions & {
+export type ScanOptions = import('tinyglobby').GlobOptions & {
   /**
    * If set to `false`, the globs won't be watched when jumpgen runs in
    * watch mode.

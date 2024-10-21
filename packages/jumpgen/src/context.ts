@@ -4,11 +4,11 @@ import { castArray, isArray, isObject, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
 import { File } from './file'
 import {
-  GlobOptions,
   JumpgenOptions,
   ListOptions,
   ReadOptions,
   resolveOptions,
+  ScanOptions,
   WatchOptions,
 } from './options'
 import { kJumpgenContext } from './symbols'
@@ -103,7 +103,7 @@ export function createJumpgenContext<
    */
   function scan(
     source: string | readonly string[],
-    options?: GlobOptions
+    options?: ScanOptions
   ): string[] {
     const cwd = options?.cwd
       ? stripTrailingSlash(path.resolve(root, options.cwd))
