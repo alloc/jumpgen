@@ -1,5 +1,9 @@
 # jumpgen
 
+![](https://img.shields.io/npm/l/jumpgen)
+
+> Easy, transparent ”watch mode” for filesystem access (powered by Chokidar)
+
 **The problem:** You're writing a script that uses the filesystem as one of its inputs. You want to watch files for changes, so you can rerun your script when they change.
 
 **The solution:** Use `jumpgen`.
