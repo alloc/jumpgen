@@ -82,10 +82,12 @@ export function jumpgen<
       context.events.emit('finish', result, generatorName)
       return result
     } catch (error: any) {
-      if (!isError(error)) {
-        error = new Error('Unexpected error: ' + String(error))
+      if (!isAbortError(error)) {
+        if (!isError(error)) {
+          error = new Error('Unexpected error: ' + String(error))
+        }
+        context.events.emit('error', error, generatorName)
       }
-      context.events.emit('error', error, generatorName)
       throw error
     } finally {
       context.status = JumpgenStatus.Finished
@@ -205,4 +207,8 @@ export function jumpgen<
       destroy: context.destroy,
     }
   }
+}
+
+function isAbortError(error: any) {
+  return isError(error) && error.name === 'AbortError'
 }
