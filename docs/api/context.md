@@ -58,6 +58,15 @@ const code = dedent`
 // => "console.log('Hello, world!');"
 ```
 
+> [!TIP]
+> If you'd like syntax highlighting for your template literals, check out the [Comment Tagged Templates](https://marketplace.visualstudio.com/items?itemName=bierner.comment-tagged-templates) VSCode extension.
+>
+> ```ts
+> const code = dedent/* ts */ `
+>   console.log('Hello, world!')
+> `
+> ```
+
 ### `emit(event)`
 
 Emit a custom event. The `event` is an object with a `type` property and any other properties you want to include.
