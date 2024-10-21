@@ -19,6 +19,12 @@ Now, your script can use filesystem APIs without worrying about how to watch fil
 - If your script reads from a configuration file, you can tell Jumpgen to [“hard reset” the generator](./docs/advanced.md#critical-files) when that file changes. This is useful for far-reaching changes that might invalidate your entire script's output.
 - It uses the [`chokidar@4`](https://github.com/paulmillr/chokidar), [`picomatch`](https://github.com/micromatch/picomatch), [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby), and [`fdir`](https://github.com/thecodrr/fdir) npm packages under the hood for file watching and globbing.
 
+#### What this library isn't for
+
+- Jumpgen isn't focused on ”project scaffolding”, like [`plop`](https://github.com/plopjs/plop) or [`yeoman`](https://yeoman.io/learning/). _But_ you can absolutely use it to build your own scaffolding tools.
+- Jumpgen isn't focused on basic file-watching tasks. If you're looking for a simple way to watch files for changes, use [`chokidar`](https://github.com/paulmillr/chokidar) directly.
+- Jumpgen isn't focused on basic script re-running. If you're looking to rerun a script when files change, use something like [`watchlist`](https://github.com/lukeed/watchlist) instead.
+
 #### API Reference
 
 See the [API Reference](./docs/api.md) for the full documentation.
