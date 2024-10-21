@@ -169,8 +169,8 @@ export function createJumpgenContext<
     let dir = options?.cwd ? path.resolve(root, options.cwd) : root
 
     while (true) {
-      children = fs.readdirSync(dir)
       watchReaddir(dir, watchOptions)
+      children = fs.readdirSync(dir)
 
       for (const name of children) {
         if (match(name)) {
@@ -196,11 +196,11 @@ export function createJumpgenContext<
   function list(dir: string, options?: ListOptions): string[] {
     dir = path.resolve(root, dir)
 
-    let children = fs.readdirSync(dir)
     if (options?.watch !== false) {
       watchReaddir(dir, options)
     }
 
+    let children = fs.readdirSync(dir)
     if (options?.glob) {
       children = children.filter(
         picomatch(options.glob, {
