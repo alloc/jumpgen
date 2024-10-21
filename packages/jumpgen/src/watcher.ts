@@ -5,6 +5,7 @@ import picomatch from 'picomatch'
 import { castArray } from 'radashi'
 import { ChokidarEvent, JumpgenEventEmitter } from './events'
 import { GlobOptions } from './options'
+import { stripTrailingSlash } from './util/path'
 
 type Matcher = {
   base: string
@@ -17,7 +18,8 @@ export type JumpgenWatcher = ReturnType<typeof createJumpgenWatcher>
 
 export function createJumpgenWatcher(
   generatorName: string,
-  events: JumpgenEventEmitter
+  events: JumpgenEventEmitter,
+  root: string
 ) {
   const watchedFiles = new Set<string>()
   const blamedFiles = new Map<string, Set<string>>()
@@ -140,7 +142,7 @@ export function createJumpgenWatcher(
 
   function add(
     patterns: string | readonly string[],
-    options: GlobOptions & { cwd: string }
+    options?: GlobOptions
   ): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
@@ -162,33 +164,37 @@ export function createJumpgenWatcher(
       }
     }
 
+    const cwd =
+      (options?.cwd
+        ? path.resolve(root, stripTrailingSlash(options.cwd))
+        : root) + path.sep
+
     for (const pattern of positivePatterns) {
-      let { base, glob } = picomatch.scan(pattern)
+      let { base, glob, isGlobstar } = picomatch.scan(pattern)
+      base = path.resolve(cwd, base)
 
       // Sort matchers by depth, so that deeper matchers are matched first.
-      const depth = path.normalize(base).split(path.sep).length
+      const depth = base.split(path.sep).length
 
       let index = matchers.findIndex(m => depth > m.depth)
       if (index === -1) {
         index = matchers.length
       }
 
-      const rootDir = options.cwd + path.sep
       const match = picomatch(pattern, options)
-
-      base = path.join(options.cwd, base)
 
       matchers.splice(index, 0, {
         base,
         glob,
         depth,
-        match: file =>
-          file.startsWith(rootDir) && match(file.slice(rootDir.length)),
+        match: path.isAbsolute(pattern)
+          ? match
+          : file => file.startsWith(cwd) && match(file.slice(cwd.length)),
       })
 
       // Once our internal state is ready, ask chokidar to watch the
-      // directory, which leads to a call to `this.match`.
-      watch(base, options?.noglobstar)
+      // directory, which leads to a call to `match()`.
+      watch(base, !isGlobstar)
     }
   }
 
@@ -214,7 +220,7 @@ export function createJumpgenWatcher(
     }
 
     // Once our internal state is ready, ask chokidar to watch the file,
-    // which leads to a call to `this.match`.
+    // which leads to a call to `match()`.
     watch(file)
   }
 

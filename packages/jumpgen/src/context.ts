@@ -16,7 +16,6 @@ import {
 } from './options'
 import { kJumpgenContext } from './symbols'
 import { dedent } from './util/dedent'
-import { stripTrailingSlash } from './util/path'
 import { createJumpgenWatcher } from './watcher'
 
 /**
@@ -52,7 +51,7 @@ export function createJumpgenContext<
   let store = {} as TStore
 
   let watcher = options.watch
-    ? createJumpgenWatcher(generatorName, events)
+    ? createJumpgenWatcher(generatorName, events, root)
     : undefined
 
   let ctrl: AbortController
@@ -71,7 +70,7 @@ export function createJumpgenContext<
         if (some(changes.keys(), watcher.isFileCritical)) {
           store = {} as TStore
           watcher.close()
-          watcher = createJumpgenWatcher(generatorName, events)
+          watcher = createJumpgenWatcher(generatorName, events, root)
         } else {
           isHardReset = false
           for (const { file, event } of changes.values()) {
@@ -89,9 +88,9 @@ export function createJumpgenContext<
           if (stat?.isFile()) {
             watcher.addFile(resolvedInput)
           } else if (stat?.isDirectory()) {
-            watcher.add(path.join(input, '**/*'), { cwd: root })
+            watcher.add(path.join(input, '**/*'))
           } else {
-            watcher.add(input, { cwd: root })
+            watcher.add(input)
           }
         }
       }
@@ -108,17 +107,10 @@ export function createJumpgenContext<
     source: string | readonly string[],
     options?: ScanOptions
   ): string[] {
-    const cwd = options?.cwd
-      ? stripTrailingSlash(path.resolve(root, options.cwd))
-      : root
-
-    const globOptions = { ...options, cwd }
-
-    if (globOptions.watch !== false) {
-      watcher?.add(source, globOptions)
+    if (options?.watch !== false) {
+      watcher?.add(source, options)
     }
-
-    return globSync(source as string | string[], globOptions)
+    return globSync(source as string | string[], options)
   }
 
   /**
@@ -228,12 +220,11 @@ export function createJumpgenContext<
     }
   ): void {
     let glob = castArray(options?.glob ?? '*')
-    let cwd: string
+    let cwd: string | undefined
     if (path.isAbsolute(dir)) {
       cwd = dir
     } else {
       glob = glob.map(pattern => joinWithGlob(dir, pattern))
-      cwd = root
     }
     watcher?.add(glob, {
       dot: true,
