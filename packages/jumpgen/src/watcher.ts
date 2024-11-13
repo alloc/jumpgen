@@ -147,7 +147,7 @@ export function createJumpgenWatcher(
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
 
-    for (const p of patterns) {
+    for (const p of castArray(patterns)) {
       if (p[0] === '!') {
         negativePatterns.push(p.slice(1))
       } else {
