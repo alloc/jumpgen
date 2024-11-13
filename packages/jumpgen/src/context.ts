@@ -376,7 +376,6 @@ export function createJumpgenContext<
    */
   function watch(files: string | readonly string[], options?: WatchOptions) {
     if (watcher) {
-      files = isArray(files) ? files : [files]
       for (const file of castArray(files)) {
         watcher.addFile(path.resolve(root, file), options)
       }
