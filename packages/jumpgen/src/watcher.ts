@@ -1,5 +1,5 @@
 import chokidar, { FSWatcher } from 'chokidar'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray } from 'radashi'
@@ -11,6 +11,7 @@ type Matcher = {
   base: string
   glob: string
   depth: number
+  ignoreEmptyNewFiles: boolean
   match: (s: string) => boolean
 }
 
@@ -26,7 +27,10 @@ export function createJumpgenWatcher(
   const criticalFiles = new Set<string>()
   const missingPaths = new Set<string>()
   const fallbackPaths = new Map<string, number>()
+
   const matchers: Matcher[] = []
+  const hasMatch = (file: string, matcher: Matcher) =>
+    matcher.match(file) || file === matcher.base
 
   // For existence checks, we need a separate watcher.
   let existenceWatcher: ExistenceWatcher | undefined
@@ -44,15 +48,7 @@ export function createJumpgenWatcher(
       if (fallbackPaths.has(file)) {
         return false
       }
-      for (const matcher of matchers) {
-        if (matcher.match(file)) {
-          return false
-        }
-        if (file === matcher.base) {
-          return false
-        }
-      }
-      return true
+      return !matchers.some(matcher => hasMatch(file, matcher))
     },
     ignoreInitial: true,
     ignorePermissionErrors: true,
@@ -77,9 +73,35 @@ export function createJumpgenWatcher(
     }
   }
 
+  const shouldIgnoreAdd = (file: string) => {
+    if (watchedFiles.has(file)) {
+      return false
+    }
+    let skip = false
+    for (const matcher of matchers) {
+      if (!matcher.ignoreEmptyNewFiles) {
+        // Keep the event if an applicable matcher cares about "add" events
+        // for empty files, even if other matchers don't care.
+        if (hasMatch(file, matcher)) {
+          return false
+        }
+        continue
+      }
+      // If already skipping, avoid the overhead of path matching and
+      // checking the file size.
+      if (!skip && hasMatch(file, matcher) && statSync(file).size === 0) {
+        skip = true
+      }
+    }
+    return skip
+  }
+
   const handleChange = (event: ChokidarEvent, file: string) => {
     if (event === 'add' || event === 'addDir') {
       checkAddedPath(file)
+    }
+    if (event === 'add' && shouldIgnoreAdd(file)) {
+      return
     }
     events.emit('watch', event, file, generatorName)
   }
@@ -142,7 +164,7 @@ export function createJumpgenWatcher(
 
   function add(
     patterns: string | readonly string[],
-    options?: GlobOptions
+    options?: GlobOptions & { ignoreEmptyNewFiles?: boolean }
   ): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
@@ -187,6 +209,7 @@ export function createJumpgenWatcher(
         base,
         glob,
         depth,
+        ignoreEmptyNewFiles: options?.ignoreEmptyNewFiles === true,
         match: path.isAbsolute(pattern)
           ? match
           : file => file.startsWith(cwd) && match(file.slice(cwd.length)),

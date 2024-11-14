@@ -54,6 +54,13 @@ export type ScanOptions = import('tinyglobby').GlobOptions & {
    * @default true
    */
   watch?: boolean
+  /**
+   * If set to `true`, your generator won't rerun when a new file is added
+   * that is empty (i.e. its `stat` object has a `size` of `0`).
+   *
+   * @default false
+   */
+  ignoreEmptyNewFiles?: boolean
 }
 
 export type ListOptions = {
