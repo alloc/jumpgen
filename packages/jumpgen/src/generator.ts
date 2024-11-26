@@ -25,12 +25,15 @@ export interface Context<
 
 export interface Jumpgen<TEvent extends { type: string }, TResult>
   extends PromiseLike<TResult> {
-  get events(): JumpgenEventEmitter<TEvent>
+  readonly events: JumpgenEventEmitter<TEvent>
+  /**
+   * Exists when the generator is running in watch mode.
+   */
+  readonly watcher: JumpgenContext['watcher'] | undefined
   /**
    * The current status of the generator.
    */
   get status(): JumpgenStatus
-  get watchedFiles(): ReadonlySet<string>
   /**
    * If you just updated some files programmatically, you can await a call
    * to this method to ensure that a new generator run has started before
@@ -79,6 +82,9 @@ export function jumpgen<
       if (isPromise(result)) {
         result = await result
       }
+      if (context.watcher) {
+        await context.watcher.ready
+      }
       context.events.emit('finish', result, generatorName)
       return result
     } catch (error: any) {
@@ -120,9 +126,11 @@ export function jumpgen<
       return promise
     }
 
-    if (context.isWatchMode) {
+    if (context.watcher) {
+      const { blamedFiles, watchedFiles } = context.watcher
+
       context.events.on('watch', (event, file) => {
-        if (event === 'change' && !context.watchedFiles.has(file)) {
+        if (event === 'change' && !watchedFiles.has(file)) {
           // This file was only scanned, not read into memory, so changes
           // to its contents are not relevant.
           return
@@ -137,22 +145,12 @@ export function jumpgen<
 
         // If the affected file has another file to “blame” for its
         // changes, then treat this as a change to the blamed file.
-        const blamedFiles = context.blamedFiles.get(file)
-        if (blamedFiles) {
-          for (const blamedFile of blamedFiles) {
-            if (!changes.has(blamedFile)) {
-              changes.set(blamedFile, {
-                event: 'change',
-                file: path.relative(context.root, blamedFile),
-              })
-            }
-          }
-        } else {
-          const lastChange = changes.get(file)
+        for (const blamedFile of blamedFiles.get(file) ?? [file]) {
+          const lastChange = changes.get(blamedFile)
           if (!lastChange) {
-            changes.set(file, {
+            changes.set(blamedFile, {
               event,
-              file: path.relative(context.root, file),
+              file: path.relative(context.root, blamedFile),
             })
           } else if (event !== 'change') {
             // Avoid overwriting "add" or "unlink" with "change".
@@ -173,11 +171,9 @@ export function jumpgen<
         return promise.then(onfulfilled, onrejected)
       },
       events: context.events,
+      watcher: context.watcher,
       get status() {
         return context.status
-      },
-      get watchedFiles() {
-        return context.watchedFiles
       },
       waitForStart(timeout) {
         if (timeout != null) {

@@ -426,27 +426,33 @@ export function createJumpgenContext<
       return store
     },
     /**
-     * Any files passed to `watch`, mapped to the files blamed for their
-     * changes (i.e. the files that caused them to be watched in the first
-     * place).
-     *
-     * If you didn't set the `cause` option when calling `watch`, the
-     * watched files won't be in here.
+     * Exists when the generator is running in watch mode.
      */
-    get blamedFiles(): ReadonlyMap<string, ReadonlySet<string>> {
-      return watcher?.blamedFiles ?? new Map()
-    },
-    /**
-     * Whether the generator is running in watch mode.
-     */
-    get isWatchMode() {
-      return !!watcher
-    },
-    /**
-     * Files that have been accessed with `read` or watched with `watch`.
-     */
-    get watchedFiles() {
-      return watcher?.files ?? new Set()
+    watcher: watcher && {
+      /**
+       * Await this promise before making any file system calls that depend
+       * on the watcher being ready.
+       */
+      get ready() {
+        return watcher!.ready
+      },
+      /**
+       * Files that have been accessed with `read` or watched with `watch`.
+       */
+      get watchedFiles() {
+        return watcher!.files
+      },
+      /**
+       * Any files passed to `watch`, mapped to the files blamed for their
+       * changes (i.e. the files that caused them to be watched in the
+       * first place).
+       *
+       * If you didn't set the `cause` option when calling `watch`, the
+       * watched files won't be in here.
+       */
+      get blamedFiles() {
+        return watcher!.blamedFiles
+      },
     },
     /**
      * Events related to the generator.

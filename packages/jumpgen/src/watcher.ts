@@ -113,6 +113,9 @@ export function createJumpgenWatcher(
   recursiveWatcher.on('all', handleChange)
   recursiveWatcher.on('error', handleError)
 
+  const readyPromises = createPromiseMap()
+  patchReadyEvent(recursiveWatcher, readyPromises)
+
   /**
    * Due to unfortunate Chokidar behavior, we need to ensure parent
    * directories of missing files are matchable. If that ever gets fixed,
@@ -154,6 +157,7 @@ export function createJumpgenWatcher(
           }
         })
         childrenWatcher.on('error', handleError)
+        patchReadyEvent(childrenWatcher, readyPromises)
       }
 
       childrenWatcher.add(file)
@@ -275,6 +279,10 @@ export function createJumpgenWatcher(
   }
 
   return {
+    get ready() {
+      return Promise.resolve(readyPromises)
+    },
+
     /**
      * All files watched through `this.addFile` calls.
      */
@@ -294,7 +302,8 @@ export function createJumpgenWatcher(
       return (existenceWatcher ??= createExistenceWatcher(
         watchedFiles,
         handleChange,
-        handleError
+        handleError,
+        readyPromises
       ))
     },
 
@@ -316,7 +325,8 @@ type ExistenceWatcher = ReturnType<typeof createExistenceWatcher>
 function createExistenceWatcher(
   watchedFiles: ReadonlySet<string>,
   handleChange: (event: ChokidarEvent, file: string) => void,
-  handleError: (error: Error) => void
+  handleError: (error: Error) => void,
+  readyPromises: PromiseMap
 ) {
   const watcher = chokidar.watch([], {
     depth: 0,
@@ -368,8 +378,8 @@ function createExistenceWatcher(
       handleChange(event, file)
     }
   })
-
   watcher.on('error', handleError)
+  patchReadyEvent(watcher, readyPromises)
 
   const watch = (file: string, existencePaths: Set<string>) => {
     existencePaths.add(file)
@@ -395,6 +405,67 @@ function createExistenceWatcher(
     async close() {
       watcher.removeAllListeners()
       await watcher.close()
+    },
+  }
+}
+
+function patchReadyEvent(watcher: FSWatcher, readyPromises: PromiseMap) {
+  // Stop monkey-patching emitReady once chokidar makes the `add` method
+  // async: https://github.com/paulmillr/chokidar/issues/1378
+  const emitReady = watcher._emitReady
+  watcher._emitReady = () => {
+    emitReady()
+    if (watcher._readyEmitted) {
+      watcher._readyEmitted = false
+      watcher._emitReady = emitReady
+    }
+  }
+  // Monkey-patch the `FSWatcher#add` method to set up a "ready" listener.
+  // This allows us to wait for the watcher to initialize before we resolve
+  // the current generator run, where the test suite may immediately
+  // perform filesystem calls.
+  const add = watcher.add.bind(watcher)
+  watcher.add = (...args) => {
+    add(...args)
+    if (!readyPromises.has(watcher)) {
+      readyPromises.set(
+        watcher,
+        new Promise<void>(resolve => {
+          watcher.once('ready', resolve)
+        })
+      )
+    }
+    return watcher
+  }
+}
+
+interface PromiseMap extends PromiseLike<void> {
+  has(key: unknown): boolean
+  set(key: unknown, promise: Promise<void>): void
+}
+
+function createPromiseMap(): PromiseMap {
+  const promises = new Map<unknown, Promise<void>>()
+  return {
+    has(key: unknown) {
+      return promises.has(key)
+    },
+    set(key: unknown, promise: Promise<void>) {
+      promises.set(key, promise)
+      const unset = () => promises.delete(key)
+      promise.then(unset, unset)
+    },
+    then<TResult1 = void, TResult2 = never>(
+      onResolve?: (() => TResult1 | PromiseLike<TResult1>) | undefined | null,
+      onReject?:
+        | ((reason: any) => TResult2 | PromiseLike<TResult2>)
+        | undefined
+        | null
+    ) {
+      return Promise.all(Array.from(promises.values())).then(
+        onResolve,
+        onReject
+      )
     },
   }
 }
