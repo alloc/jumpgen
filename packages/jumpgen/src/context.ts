@@ -115,7 +115,10 @@ export function createJumpgenContext<
     if (options?.watch !== false) {
       watcher?.add(source, options)
     }
-    return globSync(source as string | string[], options)
+    return globSync(source as string | string[], {
+      ...options,
+      cwd: options?.cwd ? path.resolve(root, options.cwd) : root,
+    })
   }
 
   /**
