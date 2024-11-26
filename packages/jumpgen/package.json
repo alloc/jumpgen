@@ -24,9 +24,11 @@
   },
   "dependencies": {
     "chokidar": "^4.0.1",
+    "debug": "^4.3.7",
     "picomatch": "^4.0.2"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.12",
     "@types/node": "^22.7.4",
     "@types/picomatch": "^3.0.1",
     "esbuild-plugin-alias": "^0.2.1",

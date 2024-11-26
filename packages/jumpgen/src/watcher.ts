@@ -3,6 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray } from 'radashi'
+import { debug } from './debug'
 import { ChokidarEvent, JumpgenEventEmitter } from './events'
 import { GlobOptions } from './options'
 import { stripTrailingSlash } from './util/path'
@@ -103,6 +104,7 @@ export function createJumpgenWatcher(
     if (event === 'add' && shouldIgnoreAdd(file)) {
       return
     }
+    debug('watched "%s" for %s', event, file)
     events.emit('watch', event, file, generatorName)
   }
 
@@ -160,8 +162,10 @@ export function createJumpgenWatcher(
         patchReadyEvent(childrenWatcher, readyPromises)
       }
 
+      debug('watching children of %s', file)
       childrenWatcher.add(file)
     } else {
+      debug('watching %s', file)
       recursiveWatcher.add(file)
     }
   }
@@ -382,6 +386,7 @@ function createExistenceWatcher(
   patchReadyEvent(watcher, readyPromises)
 
   const watch = (file: string, existencePaths: Set<string>) => {
+    debug('watching existence of %s', file)
     existencePaths.add(file)
     watcher.add(file)
   }
