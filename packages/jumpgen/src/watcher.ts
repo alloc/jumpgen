@@ -233,22 +233,33 @@ export function createJumpgenWatcher(
     file: string,
     options?: { cause?: string | string[]; critical?: boolean }
   ): void {
-    watchedFiles.add(file)
+    let causes = blamedFiles.get(file)
+    if (options?.cause) {
+      if (!causes) {
+        causes = new Set()
+        blamedFiles.set(file, causes)
+
+        // If the file was already watched without a cause, we treat it as
+        // a cause for itself.
+        if (watchedFiles.has(file)) {
+          causes.add(file)
+        }
+      }
+      for (const cause of castArray(options.cause)) {
+        causes.add(cause)
+      }
+    }
+    // If a file was already watched with a cause, we need to treat the
+    // file as a cause for itself.
+    else if (causes) {
+      causes.add(file)
+    }
 
     if (options?.critical) {
       criticalFiles.add(file)
     }
 
-    if (options?.cause) {
-      let blamed = blamedFiles.get(file)
-      if (!blamed) {
-        blamed = new Set()
-        blamedFiles.set(file, blamed)
-      }
-      for (const cause of castArray(options.cause)) {
-        blamed.add(cause)
-      }
-    }
+    watchedFiles.add(file)
 
     // Once our internal state is ready, ask chokidar to watch the file,
     // which leads to a call to `match()`.
