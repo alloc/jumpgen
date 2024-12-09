@@ -123,8 +123,10 @@ export function createJumpgenContext<
 
   /**
    * Find a file by searching up the directory tree. You may provide a glob
-   * pattern to match against the file names. The returned path is relative
-   * to the generator's root directory.
+   * pattern to match against the file names.
+   *
+   * By default, the returned path is relative to the generator's root
+   * directory. Use the `absolute` option to return an absolute path.
    *
    * By default, the search stops at the root directory, but the `stop`
    * option lets you control this behavior with a glob or function (i.e.
@@ -181,7 +183,9 @@ export function createJumpgenContext<
 
       for (const name of children) {
         if (match(name)) {
-          return path.relative(root, path.join(dir, name))
+          return options?.absolute
+            ? path.join(dir, name)
+            : path.relative(root, path.join(dir, name))
         }
       }
 

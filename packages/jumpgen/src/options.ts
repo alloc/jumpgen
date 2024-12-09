@@ -41,6 +41,12 @@ export type GlobOptions = import('picomatch').PicomatchOptions
 
 export type FindUpOptions = Omit<GlobOptions, 'noglobstar'> & {
   /**
+   * If set to `true`, the returned path will be absolute.
+   *
+   * @default false
+   */
+  absolute?: boolean
+  /**
    * Stop searching when this condition is met.
    *
    * - If a single absolute path is provided, the search will stop at the
