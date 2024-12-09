@@ -429,13 +429,13 @@ function patchReadyEvent(watcher: FSWatcher, readyPromises: PromiseMap) {
   // Stop monkey-patching emitReady once chokidar makes the `add` method
   // async: https://github.com/paulmillr/chokidar/issues/1378
   const emitReady = watcher._emitReady
-  watcher._emitReady = () => {
+  const patchedEmitReady = (watcher._emitReady = () => {
     emitReady()
     if (watcher._readyEmitted) {
       watcher._readyEmitted = false
-      watcher._emitReady = emitReady
+      watcher._emitReady = patchedEmitReady
     }
-  }
+  })
   // Monkey-patch the `FSWatcher#add` method to set up a "ready" listener.
   // This allows us to wait for the watcher to initialize before we resolve
   // the current generator run, where the test suite may immediately
