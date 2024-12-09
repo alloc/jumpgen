@@ -142,6 +142,7 @@ export function createJumpgenContext<
       globOptions: options,
     }
 
+    let dir = options?.cwd ? path.resolve(root, options.cwd) : root
     let children: string[]
     let stop: (dir: string) => boolean
 
@@ -159,6 +160,11 @@ export function createJumpgenContext<
         // Ensure the stop globs are also watched.
         watchOptions.glob = [source, options.stop].flat()
       }
+    } else if (dir !== root && !dir.startsWith(root + path.sep)) {
+      // Prevent an infinite loop when the starting directory is not within
+      // or equal to the root directory.
+      const { root } = path.parse(dir)
+      stop = dir => dir === root
     } else {
       // Stop at the root directory. (default behavior)
       stop = dir => dir === root
@@ -168,8 +174,6 @@ export function createJumpgenContext<
       ...options,
       noglobstar: true,
     })
-
-    let dir = options?.cwd ? path.resolve(root, options.cwd) : root
 
     while (true) {
       watchReaddir(dir, watchOptions)
