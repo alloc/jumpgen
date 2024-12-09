@@ -162,20 +162,22 @@ export function createJumpgenContext<
         // Ensure the stop globs are also watched.
         watchOptions.glob = [source, options.stop].flat()
       }
-    } else if (dir !== root && !dir.startsWith(root + path.sep)) {
-      // Prevent an infinite loop when the starting directory is not within
-      // or equal to the root directory.
-      const { root } = path.parse(dir)
-      stop = dir => dir === root
     } else {
       // Stop at the root directory. (default behavior)
-      stop = dir => dir === root
+      stop =
+        dir === root
+          ? () => true
+          : dir.startsWith(root + path.sep)
+          ? dir => dir === root
+          : () => false
     }
 
     const match = picomatch(source, {
       ...options,
       noglobstar: true,
     })
+
+    const finalDirectory = path.parse(dir).root
 
     while (true) {
       watchReaddir(dir, watchOptions)
@@ -189,7 +191,7 @@ export function createJumpgenContext<
         }
       }
 
-      if (stop(dir)) {
+      if (stop(dir) || dir === finalDirectory) {
         return null
       }
       dir = path.dirname(dir)
