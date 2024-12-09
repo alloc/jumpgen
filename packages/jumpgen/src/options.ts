@@ -42,6 +42,14 @@ export type GlobOptions = import('picomatch').PicomatchOptions
 export type FindUpOptions = Omit<GlobOptions, 'noglobstar'> & {
   /**
    * Stop searching when this condition is met.
+   *
+   * - If a single absolute path is provided, the search will stop at the
+   *   nearest parent directory that matches this path.
+   * - If an array of strings is provided, they are interpreted as globs
+   *   and are matched against the children of the current directory.
+   * - If a function is provided, it will be called with the absolute path
+   *   of each searched directory and should return `true` if the search
+   *   should stop.
    */
   stop?: string | string[] | ((dir: string) => boolean)
 }
