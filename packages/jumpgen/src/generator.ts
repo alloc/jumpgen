@@ -29,7 +29,7 @@ export interface Jumpgen<TEvent extends { type: string }, TResult>
   /**
    * Exists when the generator is running in watch mode.
    */
-  readonly watcher: JumpgenContext['watcher'] | undefined
+  readonly watcher: JumpgenContext['watcher']
   /**
    * The current status of the generator.
    */

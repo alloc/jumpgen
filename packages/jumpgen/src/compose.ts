@@ -30,8 +30,28 @@ export function compose<TEvent extends { type: string }, TReturn>(
         return Promise.all(runners).then(onfulfilled, onrejected)
       },
       events,
-      get watchedFiles() {
-        return new Set(runners.flatMap(runner => [...runner.watchedFiles]))
+      watcher: (options?.watch || undefined) && {
+        get ready() {
+          return Promise.all(
+            runners.map(runner => runner.watcher!.ready)
+          ) as unknown as Promise<void>
+        },
+        get watchedFiles() {
+          return new Set(
+            runners.flatMap(runner => [...runner.watcher!.watchedFiles])
+          )
+        },
+        get blamedFiles() {
+          const blamedFiles = new Map<string, Set<string>>()
+          for (const runner of runners) {
+            for (const [file, blamed] of runner.watcher!.blamedFiles) {
+              const merged = blamedFiles.get(file) ?? new Set()
+              blamed.forEach(blamed => merged.add(blamed))
+              blamedFiles.set(file, merged)
+            }
+          }
+          return blamedFiles
+        },
       },
       waitForStart(timeout) {
         const promises = runners.map(runner => runner.waitForStart())
