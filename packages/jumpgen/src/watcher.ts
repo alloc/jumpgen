@@ -276,8 +276,8 @@ export function createJumpgenWatcher(
 
     // If the file is to blame for other files being watched, those files
     // may need to be rewatched if all their blamed files are forgotten.
-    for (const [relatedFile, blamed] of blamedFiles) {
-      if (blamed.delete(file) && blamed.size === 0) {
+    for (const [relatedFile, causes] of blamedFiles) {
+      if (causes.delete(file) && causes.size === 0) {
         unwatch(relatedFile)
       }
     }

@@ -44,10 +44,13 @@ export function compose<TEvent extends { type: string }, TReturn>(
         get blamedFiles() {
           const blamedFiles = new Map<string, Set<string>>()
           for (const runner of runners) {
-            for (const [file, blamed] of runner.watcher!.blamedFiles) {
-              const merged = blamedFiles.get(file) ?? new Set()
-              blamed.forEach(blamed => merged.add(blamed))
-              blamedFiles.set(file, merged)
+            for (const [relatedFile, causes] of runner.watcher!.blamedFiles) {
+              let otherCauses = blamedFiles.get(relatedFile)
+              if (otherCauses) {
+                causes.forEach(cause => otherCauses.add(cause))
+              } else {
+                blamedFiles.set(relatedFile, new Set(causes))
+              }
             }
           }
           return blamedFiles
