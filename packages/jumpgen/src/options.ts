@@ -1,28 +1,30 @@
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
+import { ShallowOptions } from 'option-types'
 import { JumpgenEventEmitter } from './events'
 import { stripTrailingSlash } from './util/path'
 
-export type JumpgenOptions<TEvent extends { type: string } = never> = {
-  /**
-   * The directory from which all file operations are relative.
-   *
-   * @default process.cwd()
-   */
-  root?: string
-  /**
-   * Enable watch mode. Optionally, provide an array of paths to watch,
-   * which will rerun the generator if they are changed.
-   *
-   * @default false
-   */
-  watch?: boolean | string[]
-  /**
-   * Override the default event emitter. Useful for consolidating events
-   * across multiple generators.
-   */
-  events?: JumpgenEventEmitter<TEvent>
-}
+export type JumpgenOptions<TEvent extends { type: string } = never> =
+  ShallowOptions<{
+    /**
+     * The directory from which all file operations are relative.
+     *
+     * @default process.cwd()
+     */
+    root?: string
+    /**
+     * Enable watch mode. Optionally, provide an array of paths to watch,
+     * which will rerun the generator if they are changed.
+     *
+     * @default false
+     */
+    watch?: boolean | string[]
+    /**
+     * Override the default event emitter. Useful for consolidating events
+     * across multiple generators.
+     */
+    events?: JumpgenEventEmitter<TEvent>
+  }>
 
 export function resolveOptions<TEvent extends { type: string }>(
   options: JumpgenOptions<TEvent>
