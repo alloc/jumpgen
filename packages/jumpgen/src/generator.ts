@@ -25,7 +25,7 @@ export interface Context<
 
 export interface Jumpgen<TEvent extends { type: string }, TResult>
   extends PromiseLike<TResult> {
-  readonly events: JumpgenEventEmitter<TEvent>
+  readonly events: JumpgenEventEmitter<TEvent, TResult>
   /**
    * Exists when the generator is running in watch mode.
    */
