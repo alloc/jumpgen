@@ -59,6 +59,9 @@ importers:
       debug:
         specifier: ^4.3.7
         version: 4.3.7
+      option-types:
+        specifier: ^1.1.0
+        version: 1.1.0
       picomatch:
         specifier: ^4.0.2
         version: 4.0.2
@@ -796,6 +799,9 @@ packages:
   onetime@5.1.2:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
+
+  option-types@1.1.0:
+    resolution: {integrity: sha512-XbFxQf/ag3xui9ohg8QFsXLvoqwhz3M/Q8eNOQ/I1yOacn/G1Us7tOvQkNQHZy8a7lwi/1qHwt7qlH1E/UDq8A==}
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
@@ -1658,6 +1664,8 @@ snapshots:
   onetime@5.1.2:
     dependencies:
       mimic-fn: 2.1.0
+
+  option-types@1.1.0: {}
 
   package-json-from-dist@1.0.1: {}
 
