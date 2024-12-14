@@ -50,6 +50,26 @@ const result = await generator
 // 4. Profit.
 ```
 
+### Persistent Memory
+
+The `store` object is a key-value store that your generator can use to share data between runs. When using TypeScript, it's a good idea to define a type for the store.
+
+```ts
+type Store = {
+  foo: string
+}
+
+const myGenerator = jumpgen<Store>('my-generator', ctx => {
+  // To detect a fresh run, check for a missing key in the store.
+  if (ctx.store.foo === undefined) {
+    ctx.store.foo = 'bar'
+    // ... Possibly do some other setup work.
+  }
+})
+```
+
+This feature is invaluable for generators that want to implement incremental updates.
+
 ## `compose(...generators)`
 
 Create a generator “factory function” that runs any number of generators in parallel.
