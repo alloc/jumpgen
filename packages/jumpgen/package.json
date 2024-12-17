@@ -22,6 +22,9 @@
       "default": "./dist/context.js"
     }
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "chokidar": "^4.0.1",
     "debug": "^4.3.7",
