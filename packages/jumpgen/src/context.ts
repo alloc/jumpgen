@@ -1,4 +1,13 @@
-import fs from 'node:fs'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+  type Stats,
+} from 'node:fs'
 import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray, isArray, isFunction, isObject, isString } from 'radashi'
@@ -89,7 +98,7 @@ export function createJumpgenContext<
             )
           }
           const resolvedInput = path.resolve(root, input)
-          const stat = fs.statSync(resolvedInput, { throwIfNoEntry: false })
+          const stat = statSync(resolvedInput, { throwIfNoEntry: false })
           if (stat?.isFile()) {
             watcher.addFile(resolvedInput)
           } else if (stat?.isDirectory()) {
@@ -102,295 +111,297 @@ export function createJumpgenContext<
     }
   }
 
-  /**
-   * Scan the filesystem for files matching the given glob pattern. File
-   * paths are allowed to be relative. In watch mode, the matching files
-   * will be watched for changes, unless this function was called with the
-   * `watch` option set to `false`.
-   */
-  function scan(
-    source: string | readonly string[],
-    options?: ScanOptions
-  ): string[] {
-    if (options?.watch !== false) {
-      watcher?.add(source, options)
-    }
-    return globSync(source as string | string[], {
-      ...options,
-      cwd: options?.cwd ? path.resolve(root, options.cwd) : root,
-    })
-  }
-
-  /**
-   * Find a file by searching up the directory tree. You may provide a glob
-   * pattern to match against the file names.
-   *
-   * By default, the returned path is relative to the generator's root
-   * directory. Use the `absolute` option to return an absolute path.
-   *
-   * By default, the search stops at the root directory, but the `stop`
-   * option lets you control this behavior with a glob or function (i.e.
-   * stop when a `.git` directory is found).
-   *
-   * Globstars (`**`) and separators (`/`) are not allowed in the source
-   * glob(s).
-   */
-  function findUp(
-    source: string | string[],
-    options?: FindUpOptions
-  ): string | null {
-    const watchOptions = {
-      glob: source,
-      globOptions: options,
-    }
-
-    let dir = options?.cwd ? path.resolve(root, options.cwd) : root
-    let children: string[]
-    let stop: (dir: string) => boolean
-
-    if (options?.stop) {
-      if (isFunction(options.stop)) {
-        stop = options.stop
-      } else if (isString(options.stop) && path.isAbsolute(options.stop)) {
-        // Stop at a specific parent directory.
-        stop = dir => dir === options.stop
-      } else {
-        // Stop when a matching path is found.
-        const match = picomatch(options.stop, { noglobstar: true })
-        stop = () => children.some(match)
-
-        // Ensure the stop globs are also watched.
-        watchOptions.glob = [source, options.stop].flat()
+  class fs {
+    /**
+     * Scan the filesystem for files matching the given glob pattern. File
+     * paths are allowed to be relative. In watch mode, the matching files
+     * will be watched for changes, unless this function was called with the
+     * `watch` option set to `false`.
+     */
+    static scan(
+      source: string | readonly string[],
+      options?: ScanOptions
+    ): string[] {
+      if (options?.watch !== false) {
+        watcher?.add(source, options)
       }
-    } else {
-      // Stop at the root directory. (default behavior)
-      stop =
-        dir === root
-          ? () => true
-          : dir.startsWith(root + path.sep)
-          ? dir => dir === root
-          : () => false
+      return globSync(source as string | string[], {
+        ...options,
+        cwd: options?.cwd ? path.resolve(root, options.cwd) : root,
+      })
     }
 
-    const match = picomatch(source, {
-      ...options,
-      noglobstar: true,
-    })
+    /**
+     * Find a file by searching up the directory tree. You may provide a glob
+     * pattern to match against the file names.
+     *
+     * By default, the returned path is relative to the generator's root
+     * directory. Use the `absolute` option to return an absolute path.
+     *
+     * By default, the search stops at the root directory, but the `stop`
+     * option lets you control this behavior with a glob or function (i.e.
+     * stop when a `.git` directory is found).
+     *
+     * Globstars (`**`) and separators (`/`) are not allowed in the source
+     * glob(s).
+     */
+    static findUp(
+      source: string | string[],
+      options?: FindUpOptions
+    ): string | null {
+      const watchOptions = {
+        glob: source,
+        globOptions: options,
+      }
 
-    const finalDirectory = path.parse(dir).root
+      let dir = options?.cwd ? path.resolve(root, options.cwd) : root
+      let children: string[]
+      let stop: (dir: string) => boolean
 
-    while (true) {
-      watchReaddir(dir, watchOptions)
-      children = fs.readdirSync(dir)
+      if (options?.stop) {
+        if (isFunction(options.stop)) {
+          stop = options.stop
+        } else if (isString(options.stop) && path.isAbsolute(options.stop)) {
+          // Stop at a specific parent directory.
+          stop = dir => dir === options.stop
+        } else {
+          // Stop when a matching path is found.
+          const match = picomatch(options.stop, { noglobstar: true })
+          stop = () => children.some(match)
 
-      for (const name of children) {
-        if (match(name)) {
-          return options?.absolute
-            ? path.join(dir, name)
-            : path.relative(root, path.join(dir, name))
+          // Ensure the stop globs are also watched.
+          watchOptions.glob = [source, options.stop].flat()
         }
+      } else {
+        // Stop at the root directory. (default behavior)
+        stop =
+          dir === root
+            ? () => true
+            : dir.startsWith(root + path.sep)
+            ? dir => dir === root
+            : () => false
       }
 
-      if (stop(dir) || dir === finalDirectory) {
+      const match = picomatch(source, {
+        ...options,
+        noglobstar: true,
+      })
+
+      const finalDirectory = path.parse(dir).root
+
+      while (true) {
+        this.watchReaddir(dir, watchOptions)
+        children = readdirSync(dir)
+
+        for (const name of children) {
+          if (match(name)) {
+            return options?.absolute
+              ? path.join(dir, name)
+              : path.relative(root, path.join(dir, name))
+          }
+        }
+
+        if (stop(dir) || dir === finalDirectory) {
+          return null
+        }
+        dir = path.dirname(dir)
+      }
+    }
+
+    /**
+     * List the children of a directory. The directory is allowed to be a
+     * relative path. In watch mode, the directory will be watched for
+     * changes.
+     *
+     * You may want to filter the list of files using the `glob` option, if
+     * you're only interested in a subset of the directory's contents.
+     */
+    static list(dir: string, options?: ListOptions): string[] {
+      dir = path.resolve(root, dir)
+
+      if (options?.watch !== false) {
+        this.watchReaddir(dir, options)
+      }
+
+      let children = readdirSync(dir)
+      if (options?.glob) {
+        children = children.filter(
+          picomatch(options.glob, {
+            dot: true,
+            ...options.globOptions,
+            noglobstar: true,
+          })
+        )
+      }
+
+      if (options?.absolute) {
+        return children.map(child => path.join(dir, child))
+      }
+      return children
+    }
+
+    static watchReaddir(
+      dir: string,
+      options?: {
+        glob?: string | string[]
+        globOptions?: Omit<GlobOptions, 'cwd' | 'noglobstar'>
+      }
+    ): void {
+      let glob = castArray(options?.glob ?? '*')
+      let cwd: string | undefined
+      if (path.isAbsolute(dir)) {
+        cwd = dir
+      } else {
+        glob = glob.map(pattern => joinWithGlob(dir, pattern))
+      }
+      watcher?.add(glob, {
+        dot: true,
+        ...options?.globOptions,
+        cwd,
+        noglobstar: true,
+      })
+    }
+
+    /**
+     * Read a file from the filesystem. File paths are allowed to be
+     * relative. In watch mode, the file will be watched for changes.
+     */
+    static read(
+      path: string,
+      options?: (ReadOptions & { encoding?: null | undefined }) | null
+    ): Buffer
+
+    static read(
+      path: string,
+      options: (ReadOptions & { encoding: BufferEncoding }) | BufferEncoding
+    ): string
+
+    static read(
+      path: string,
+      options?: ReadOptions | BufferEncoding | null
+    ): string | Buffer
+
+    static read(
+      file: string,
+      options?: ReadOptions | BufferEncoding | null
+    ): any {
+      file = path.resolve(root, file)
+      watcher?.addFile(file, isObject(options) ? options : undefined)
+
+      return readFileSync(file, options)
+    }
+
+    /**
+     * Similar to `read` except that it returns `null` if the file does not
+     * exist, instead of throwing an error.
+     */
+    static tryRead(
+      path: string,
+      options?: (ReadOptions & { encoding?: null | undefined }) | null
+    ): Buffer | null
+
+    static tryRead(
+      path: string,
+      options: (ReadOptions & { encoding: BufferEncoding }) | BufferEncoding
+    ): string | null
+
+    static tryRead(
+      path: string,
+      options?: ReadOptions | BufferEncoding | null
+    ): string | Buffer | null
+
+    static tryRead(
+      file: string,
+      options?: ReadOptions | BufferEncoding | null
+    ): any {
+      try {
+        return this.read(file, options)
+      } catch {
         return null
       }
-      dir = path.dirname(dir)
-    }
-  }
-
-  /**
-   * List the children of a directory. The directory is allowed to be a
-   * relative path. In watch mode, the directory will be watched for
-   * changes.
-   *
-   * You may want to filter the list of files using the `glob` option, if
-   * you're only interested in a subset of the directory's contents.
-   */
-  function list(dir: string, options?: ListOptions): string[] {
-    dir = path.resolve(root, dir)
-
-    if (options?.watch !== false) {
-      watchReaddir(dir, options)
     }
 
-    let children = fs.readdirSync(dir)
-    if (options?.glob) {
-      children = children.filter(
-        picomatch(options.glob, {
-          dot: true,
-          ...options.globOptions,
-          noglobstar: true,
-        })
-      )
+    static stat(file: string): Stats | undefined {
+      file = path.resolve(root, file)
+      watcher?.addFile(file)
+
+      return statSync(file, { throwIfNoEntry: false })
     }
 
-    if (options?.absolute) {
-      return children.map(child => path.join(dir, child))
+    static lstat(file: string): Stats | undefined {
+      file = path.resolve(root, file)
+      watcher?.addFile(file)
+
+      return lstatSync(file, { throwIfNoEntry: false })
     }
-    return children
-  }
 
-  function watchReaddir(
-    dir: string,
-    options?: {
-      glob?: string | string[]
-      globOptions?: Omit<GlobOptions, 'cwd' | 'noglobstar'>
+    static exists(file: string): boolean {
+      file = path.resolve(root, file)
+      watcher?.exists.watch(file)
+
+      return existsSync(file)
     }
-  ): void {
-    let glob = castArray(options?.glob ?? '*')
-    let cwd: string | undefined
-    if (path.isAbsolute(dir)) {
-      cwd = dir
-    } else {
-      glob = glob.map(pattern => joinWithGlob(dir, pattern))
+
+    static fileExists(file: string): boolean {
+      file = path.resolve(root, file)
+      watcher?.exists.watchFile(file)
+
+      const stats = statSync(file, { throwIfNoEntry: false })
+      return stats !== undefined && stats.isFile()
     }
-    watcher?.add(glob, {
-      dot: true,
-      ...options?.globOptions,
-      cwd,
-      noglobstar: true,
-    })
-  }
 
-  /**
-   * Read a file from the filesystem. File paths are allowed to be
-   * relative. In watch mode, the file will be watched for changes.
-   */
-  function read(
-    path: string,
-    options?: (ReadOptions & { encoding?: null | undefined }) | null
-  ): Buffer
+    static symlinkExists(file: string): boolean {
+      file = path.resolve(root, file)
+      watcher?.exists.watch(file)
 
-  function read(
-    path: string,
-    options: (ReadOptions & { encoding: BufferEncoding }) | BufferEncoding
-  ): string
-
-  function read(
-    path: string,
-    options?: ReadOptions | BufferEncoding | null
-  ): string | Buffer
-
-  function read(
-    file: string,
-    options?: ReadOptions | BufferEncoding | null
-  ): any {
-    file = path.resolve(root, file)
-    watcher?.addFile(file, isObject(options) ? options : undefined)
-
-    return fs.readFileSync(file, options)
-  }
-
-  /**
-   * Similar to `read` except that it returns `null` if the file does not
-   * exist, instead of throwing an error.
-   */
-  function tryRead(
-    path: string,
-    options?: (ReadOptions & { encoding?: null | undefined }) | null
-  ): Buffer | null
-
-  function tryRead(
-    path: string,
-    options: (ReadOptions & { encoding: BufferEncoding }) | BufferEncoding
-  ): string | null
-
-  function tryRead(
-    path: string,
-    options?: ReadOptions | BufferEncoding | null
-  ): string | Buffer | null
-
-  function tryRead(
-    file: string,
-    options?: ReadOptions | BufferEncoding | null
-  ): any {
-    try {
-      return read(file, options)
-    } catch {
-      return null
+      const stats = statSync(file, { throwIfNoEntry: false })
+      return stats !== undefined && stats.isSymbolicLink()
     }
-  }
 
-  function stat(file: string): fs.Stats | undefined {
-    file = path.resolve(root, file)
-    watcher?.addFile(file)
+    static directoryExists(file: string): boolean {
+      file = path.resolve(root, file)
+      watcher?.exists.watchDirectory(file)
 
-    return fs.statSync(file, { throwIfNoEntry: false })
-  }
+      const stats = statSync(file, { throwIfNoEntry: false })
+      return stats !== undefined && stats.isDirectory()
+    }
 
-  function lstat(file: string): fs.Stats | undefined {
-    file = path.resolve(root, file)
-    watcher?.addFile(file)
+    /**
+     * Write a file to the filesystem. If a parent directory does not exist,
+     * it will be created. File paths are allowed to be relative. Emits a
+     * `write` event after the file is written.
+     */
+    static write(file: string, data: string | Buffer): void {
+      file = path.resolve(root, file)
 
-    return fs.lstatSync(file, { throwIfNoEntry: false })
-  }
-
-  function exists(file: string): boolean {
-    file = path.resolve(root, file)
-    watcher?.exists.watch(file)
-
-    return fs.existsSync(file)
-  }
-
-  function fileExists(file: string): boolean {
-    file = path.resolve(root, file)
-    watcher?.exists.watchFile(file)
-
-    const stats = fs.statSync(file, { throwIfNoEntry: false })
-    return stats !== undefined && stats.isFile()
-  }
-
-  function symlinkExists(file: string): boolean {
-    file = path.resolve(root, file)
-    watcher?.exists.watch(file)
-
-    const stats = fs.statSync(file, { throwIfNoEntry: false })
-    return stats !== undefined && stats.isSymbolicLink()
-  }
-
-  function directoryExists(file: string): boolean {
-    file = path.resolve(root, file)
-    watcher?.exists.watchDirectory(file)
-
-    const stats = fs.statSync(file, { throwIfNoEntry: false })
-    return stats !== undefined && stats.isDirectory()
-  }
-
-  /**
-   * Write a file to the filesystem. If a parent directory does not exist,
-   * it will be created. File paths are allowed to be relative. Emits a
-   * `write` event after the file is written.
-   */
-  function write(file: string, data: string | Buffer): void {
-    file = path.resolve(root, file)
-
-    try {
-      if (isString(data)) {
-        if (fs.readFileSync(file, 'utf8') === data) {
-          return
+      try {
+        if (isString(data)) {
+          if (readFileSync(file, 'utf8') === data) {
+            return
+          }
+        } else {
+          if (readFileSync(file).equals(data)) {
+            return
+          }
         }
-      } else {
-        if (fs.readFileSync(file).equals(data)) {
-          return
+      } catch {}
+
+      mkdirSync(path.dirname(file), { recursive: true })
+      writeFileSync(file, data)
+      events.emit('write', file, generatorName)
+    }
+
+    /**
+     * Add files to trigger a generator rerun when they are changed. This is
+     * only useful for files that weren't read using Jumpgen context methods
+     * (for example, if you're using a library that reads from the filesystem
+     * on its own).
+     */
+    static watch(files: string | readonly string[], options?: WatchOptions) {
+      if (watcher) {
+        for (const file of castArray(files)) {
+          watcher.addFile(path.resolve(root, file), options)
         }
-      }
-    } catch {}
-
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, data)
-    events.emit('write', file, generatorName)
-  }
-
-  /**
-   * Add files to trigger a generator rerun when they are changed. This is
-   * only useful for files that weren't read using Jumpgen context methods
-   * (for example, if you're using a library that reads from the filesystem
-   * on its own).
-   */
-  function watch(files: string | readonly string[], options?: WatchOptions) {
-    if (watcher) {
-      for (const file of castArray(files)) {
-        watcher.addFile(path.resolve(root, file), options)
       }
     }
   }
@@ -515,21 +526,7 @@ export function createJumpgenContext<
     /**
      * A collection of filesystem-related methods.
      */
-    fs: {
-      directoryExists,
-      exists,
-      fileExists,
-      findUp,
-      list,
-      lstat,
-      read,
-      scan,
-      stat,
-      symlinkExists,
-      tryRead,
-      watch,
-      write,
-    },
+    fs,
     emit,
     abort,
     destroy,
