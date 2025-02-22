@@ -189,15 +189,29 @@ export function createJumpgenContext<
 
       const finalDirectory = path.parse(dir).root
 
-      while (true) {
-        this.watchReaddir(dir, watchOptions)
-        children = readdirSync(dir)
+      let dirExists = false
 
-        for (const name of children) {
-          if (match(name)) {
-            return options?.absolute
-              ? path.join(dir, name)
-              : path.relative(root, path.join(dir, name))
+      while (true) {
+        // Keep checking existence until we find a directory that exists.
+        if (!dirExists) {
+          if (statSync(dir, { throwIfNoEntry: false })) {
+            dirExists = true
+          } else {
+            watcher?.exists.watchDirectory(dir)
+          }
+        }
+
+        // Avoid trying to read a directory that doesn't exist.
+        if (dirExists) {
+          this.watchReaddir(dir, watchOptions)
+          children = readdirSync(dir)
+
+          for (const name of children) {
+            if (match(name)) {
+              return options?.absolute
+                ? path.join(dir, name)
+                : path.relative(root, path.join(dir, name))
+            }
           }
         }
 
