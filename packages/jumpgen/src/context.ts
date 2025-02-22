@@ -33,6 +33,11 @@ import { createJumpgenWatcher } from './watcher'
 export type FileChangeLog = Map<string, FileChange>
 export type FileChange = {
   event: 'add' | 'change' | 'unlink'
+  /**
+   * Equals `S_IFDIR` or `S_IFREG` from the `constants`
+   * namespace exported by `node:fs`.
+   */
+  type: number
   /** File path, relative to root directory. */
   file: string
 }

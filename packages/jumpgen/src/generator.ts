@@ -1,3 +1,4 @@
+import { constants } from 'node:fs'
 import path from 'node:path'
 import { isError, isPromise, noop, sleep } from 'radashi'
 import {
@@ -136,11 +137,15 @@ export function jumpgen<
           return
         }
 
+        let type = constants.S_IFREG
+
         // Simplify the event type for the sake of the change log.
         if (event === 'addDir') {
           event = 'add'
+          type = constants.S_IFDIR
         } else if (event === 'unlinkDir') {
           event = 'unlink'
+          type = constants.S_IFDIR
         }
 
         // If the affected file has another file to “blame” for its
@@ -150,6 +155,7 @@ export function jumpgen<
           if (!lastChange) {
             changes.set(blamedFile, {
               event,
+              type,
               file: path.relative(context.root, blamedFile),
             })
           } else if (event !== 'change') {
