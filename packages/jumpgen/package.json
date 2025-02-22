@@ -1,7 +1,7 @@
 {
   "name": "jumpgen",
   "type": "module",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Easy, transparent ”watch mode” for filesystem access (powered by Chokidar)",
   "author": "Alec Larson",
   "license": "MIT",
