@@ -67,6 +67,11 @@ export function compose<TEvent extends { type: string }, TReturn>(
         }
         return Promise.race(promises)
       },
+      abort(reason) {
+        for (const runner of runners) {
+          runner.abort(reason)
+        }
+      },
       rerun() {
         return Promise.all(runners.map(runner => runner.rerun()))
       },

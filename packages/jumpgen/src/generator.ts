@@ -49,6 +49,10 @@ export interface Jumpgen<TEvent extends { type: string }, TResult>
    */
   waitForStart(timeout?: number): Promise<void>
   /**
+   * Abort the current generator run.
+   */
+  abort(reason?: any): void
+  /**
    * Abort the current generator run (if any) and start a new one. In watch
    * mode, you shouldn't *need* to call this, but if your generator isn't
    * able to watch everything it depends on, it could be necessary.
@@ -110,6 +114,17 @@ export function jumpgen<
     context.events.on('start', () => {
       startEvent.resolve()
       startEvent = Promise.withResolvers()
+    })
+
+    let ctrl = new AbortController()
+    ctrl.signal.addEventListener('abort', function abort() {
+      if (context.status === JumpgenStatus.Running) {
+        context.abort(ctrl.signal.reason)
+      } else {
+        startEvent.reject(ctrl.signal.reason)
+      }
+      ctrl = new AbortController()
+      ctrl.signal.addEventListener('abort', abort)
     })
 
     let promise = run(context)
@@ -191,6 +206,11 @@ export function jumpgen<
           ])
         }
         return startEvent.promise
+      },
+      abort(reason) {
+        if (context.status !== JumpgenStatus.Finished) {
+          ctrl.abort(reason)
+        }
       },
       rerun() {
         if (context.status === JumpgenStatus.Finished) {
