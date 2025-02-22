@@ -1,4 +1,4 @@
-import { constants } from 'node:fs'
+import { S_IFDIR, S_IFREG } from 'node:constants'
 import path from 'node:path'
 import { isError, isPromise, noop, sleep } from 'radashi'
 import {
@@ -137,15 +137,15 @@ export function jumpgen<
           return
         }
 
-        let type = constants.S_IFREG
+        let type = S_IFREG
 
         // Simplify the event type for the sake of the change log.
         if (event === 'addDir') {
           event = 'add'
-          type = constants.S_IFDIR
+          type = S_IFDIR
         } else if (event === 'unlinkDir') {
           event = 'unlink'
-          type = constants.S_IFDIR
+          type = S_IFDIR
         }
 
         // If the affected file has another file to “blame” for its

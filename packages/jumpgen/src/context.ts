@@ -34,8 +34,7 @@ export type FileChangeLog = Map<string, FileChange>
 export type FileChange = {
   event: 'add' | 'change' | 'unlink'
   /**
-   * Equals `S_IFDIR` or `S_IFREG` from the `constants`
-   * namespace exported by `node:fs`.
+   * Equals `S_IFDIR` or `S_IFREG` exported by `node:constants`.
    */
   type: number
   /** File path, relative to root directory. */
