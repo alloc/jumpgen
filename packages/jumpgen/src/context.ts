@@ -118,9 +118,9 @@ export function createJumpgenContext<
   class fs {
     /**
      * Scan the filesystem for files matching the given glob pattern. File
-     * paths are allowed to be relative. In watch mode, the matching files
-     * will be watched for changes, unless this function was called with the
-     * `watch` option set to `false`.
+     * paths are allowed to be relative. In watch mode, "add" and "unlink"
+     * events are tracked by default, unless you pass `watch: false` in the
+     * options.
      */
     static scan(
       source: string | readonly string[],

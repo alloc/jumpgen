@@ -13,6 +13,7 @@ type Matcher = {
   glob: string
   depth: number
   ignoreEmptyNewFiles: boolean
+  ignoreChangeEvents: boolean
   match: (s: string) => boolean
 }
 
@@ -97,11 +98,25 @@ export function createJumpgenWatcher(
     return skip
   }
 
+  const shouldIgnoreChange = (file: string) => {
+    if (watchedFiles.has(file)) {
+      return false
+    }
+    // Every matcher must be uninterested in the change. If the matchers
+    // array is empty, this returns true.
+    return matchers.every(
+      matcher => matcher.ignoreChangeEvents || !hasMatch(file, matcher)
+    )
+  }
+
   const handleChange = (event: ChokidarEvent, file: string) => {
     if (event === 'add' || event === 'addDir') {
       checkAddedPath(file)
     }
     if (event === 'add' && shouldIgnoreAdd(file)) {
+      return
+    }
+    if (event === 'change' && shouldIgnoreChange(file)) {
       return
     }
     debug('watched "%s" for %s', event, file)
@@ -153,11 +168,7 @@ export function createJumpgenWatcher(
           ignoreInitial: true,
           ignorePermissionErrors: true,
         })
-        childrenWatcher.on('all', (event, file) => {
-          if (event !== 'change') {
-            handleChange(event, file)
-          }
-        })
+        childrenWatcher.on('all', handleChange)
         childrenWatcher.on('error', handleError)
         patchReadyEvent(childrenWatcher, readyPromises)
       }
@@ -172,7 +183,18 @@ export function createJumpgenWatcher(
 
   function add(
     patterns: string | readonly string[],
-    options?: GlobOptions & { ignoreEmptyNewFiles?: boolean }
+    options?: GlobOptions & {
+      /**
+       * Ignore "add" events for empty files.
+       */
+      ignoreEmptyNewFiles?: boolean
+      /**
+       * Subscribe to "change" events. Normally, userland needs to call
+       * `fs.watch()` on each individual file in order to receive change
+       * events (not to be confused with "add" or "unlink" events).
+       */
+      enableChangeEvents?: boolean
+    }
   ): void {
     const positivePatterns: string[] = []
     const negativePatterns: string[] = []
@@ -221,6 +243,7 @@ export function createJumpgenWatcher(
         glob,
         depth,
         ignoreEmptyNewFiles: options?.ignoreEmptyNewFiles === true,
+        ignoreChangeEvents: options?.enableChangeEvents !== true,
         match: path.isAbsolute(pattern)
           ? match
           : file => file.startsWith(cwd) && match(file.slice(cwd.length)),

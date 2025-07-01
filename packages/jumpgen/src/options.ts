@@ -77,6 +77,13 @@ export type ScanOptions = import('tinyglobby').GlobOptions & {
    * @default false
    */
   ignoreEmptyNewFiles?: boolean
+  /**
+   * If set to `true`, the library will subscribe to "change" events for
+   * the matching files.
+   *
+   * @default false
+   */
+  enableChangeEvents?: boolean
 }
 
 export type ListOptions = {
