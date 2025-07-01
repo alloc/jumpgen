@@ -114,12 +114,14 @@ export function createJumpgenWatcher(
       checkAddedPath(file)
     }
     if (event === 'add' && shouldIgnoreAdd(file)) {
+      debug('ignoring "add" event for %s', file)
       return
     }
     if (event === 'change' && shouldIgnoreChange(file)) {
+      debug('ignoring "change" event for %s', file)
       return
     }
-    debug('watched "%s" for %s', event, file)
+    debug('watched "%s" event for %s', event, file)
     events.emit('watch', event, file, generatorName)
   }
 
@@ -226,6 +228,14 @@ export function createJumpgenWatcher(
         // Required for isGlobstar to work.
         scanToEnd: true,
       })
+      debug(
+        'watching glob "%s" in %s',
+        glob,
+        base,
+        JSON.stringify(options) || ''
+      )
+
+      // Base directory must be absolute.
       base = path.resolve(cwd, base)
 
       // Sort matchers by depth, so that deeper matchers are matched first.
