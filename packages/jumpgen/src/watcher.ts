@@ -200,7 +200,10 @@ export function createJumpgenWatcher(
         : root) + path.sep
 
     for (const pattern of positivePatterns) {
-      let { base, glob, isGlobstar } = picomatch.scan(pattern)
+      let { base, glob, isGlobstar } = picomatch.scan(pattern, {
+        // Required for isGlobstar to work.
+        scanToEnd: true,
+      })
       base = path.resolve(cwd, base)
 
       // Sort matchers by depth, so that deeper matchers are matched first.
