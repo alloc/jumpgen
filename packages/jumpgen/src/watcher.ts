@@ -302,9 +302,24 @@ export function createJumpgenWatcher(
     watch(file)
   }
 
+  /**
+   * Stop tracking events for the given file path.
+   *
+   * **Note:** If a watched glob matches the given path, it won't be
+   * completely unwatched. In other words, the glob will continue to track
+   * events for the given path.
+   */
   function unwatch(file: string): void {
-    recursiveWatcher.unwatch(file)
     existenceWatcher?.unwatch(file)
+
+    // Keep watching the file if it's still relevant to a watched glob.
+    if (
+      matchers.every(
+        matcher => matcher.ignoreChangeEvents || !hasMatch(file, matcher)
+      )
+    ) {
+      recursiveWatcher.unwatch(file)
+    }
 
     watchedFiles.delete(file)
     blamedFiles.delete(file)

@@ -12,6 +12,7 @@ import path from 'node:path'
 import picomatch from 'picomatch'
 import { castArray, isArray, isFunction, isObject, isString } from 'radashi'
 import { globSync } from 'tinyglobby'
+import { debug } from './debug'
 import { File } from './file'
 import {
   FindUpOptions,
@@ -84,8 +85,12 @@ export function createJumpgenContext<
           store = {} as TStore
           watcher.close()
           watcher = createJumpgenWatcher(generatorName, events, root)
+          debug('File watcher was reset because a critical file was changed.')
         } else {
           isHardReset = false
+
+          // Unwatch files that were changed or unlinked. The generator
+          // should re-watch them if they're still relevant.
           for (const { file, event } of changes.values()) {
             if (event !== 'add') {
               watcher.unwatch(path.resolve(root, file))
