@@ -143,15 +143,9 @@ export function jumpgen<
     }
 
     if (context.watcher) {
-      const { blamedFiles, watchedFiles } = context.watcher
+      const { blamedFiles } = context.watcher
 
       context.events.on('watch', (event, file) => {
-        if (event === 'change' && !watchedFiles.has(file)) {
-          // This file was only scanned, not read into memory, so changes
-          // to its contents are not relevant.
-          return
-        }
-
         let type = S_IFREG
 
         // Simplify the event type for the sake of the change log.
